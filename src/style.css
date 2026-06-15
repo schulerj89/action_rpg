@@ -72,7 +72,8 @@ button.ghost {
 
 .battle-ui,
 .debug-panel,
-.loading {
+.loading,
+.move-banner {
   position: absolute;
   z-index: 5;
 }
@@ -95,8 +96,31 @@ button.ghost {
 
 .battle-ui[hidden],
 .victory-state[hidden],
-.loading[hidden] {
+.loading[hidden],
+.move-banner[hidden] {
   display: none;
+}
+
+.move-banner {
+  top: 18px;
+  left: 50%;
+  min-width: min(520px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  transform: translateX(-50%);
+  padding: 12px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  color: #07100f;
+  background: #f6d365;
+  box-shadow: 0 12px 38px rgba(246, 211, 101, 0.32);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.move-banner.pop {
+  animation: move-pop 1450ms ease both;
 }
 
 .combatants {
@@ -287,6 +311,24 @@ button.ghost {
 
   100% {
     opacity: 0;
+  }
+}
+
+@keyframes move-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-18px) scale(0.94);
+  }
+
+  15%,
+  78% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px) scale(0.98);
   }
 }
 

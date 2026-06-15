@@ -6,6 +6,7 @@ export const heroAnimationAssets: Record<HeroAnimationKey, string> = {
   idle: `${heroBase}Boxing_Warmup_withSkin.glb`,
   run: `${heroBase}Running_withSkin.glb`,
   attack: `${heroBase}Punch_Combo_2_withSkin.glb`,
+  kick: `${heroBase}Spartan_Kick_withSkin.glb`,
   chi: `${heroBase}mage_soell_cast_withSkin.glb`,
   slam: `${heroBase}Charged_Ground_Slam_withSkin.glb`,
   hit: `${heroBase}Hit_Reaction_1_withSkin.glb`,

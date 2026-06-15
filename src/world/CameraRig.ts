@@ -1,5 +1,5 @@
 import { PerspectiveCamera, Vector3 } from 'three';
-import { tweenVector3 } from '../core/tween';
+import { tweenVector3, wait } from '../core/tween';
 
 type CameraMode = 'exploration' | 'scripted' | 'battle';
 
@@ -57,13 +57,27 @@ export class CameraRig {
     await this.transitionToBattle(heroPosition, enemyPosition);
   }
 
-  async victoryView(heroPosition: Vector3, enemyPosition: Vector3): Promise<void> {
+  async victorySequence(heroPosition: Vector3, enemyPosition: Vector3): Promise<void> {
     this.mode = 'scripted';
-    const side = new Vector3(3.2, 2.1, 2.8);
-    const targetPosition = heroPosition.clone().add(side);
-    const targetLook = heroPosition.clone().lerp(enemyPosition, 0.22);
-    targetLook.y += 1.25;
-    await this.moveCamera(targetPosition, targetLook, 720);
+    const forward = enemyPosition.clone().sub(heroPosition).setY(0).normalize();
+    const right = new Vector3(forward.z, 0, -forward.x).normalize();
+    const face = heroPosition.clone();
+    face.y += 1.35;
+
+    const closeFront = heroPosition.clone().addScaledVector(forward, 1.15);
+    closeFront.y += 1.48;
+
+    const lowFront = heroPosition.clone().addScaledVector(forward, 2.55).addScaledVector(right, -0.78);
+    lowFront.y += 0.95;
+
+    const pullBack = heroPosition.clone().addScaledVector(forward, 4.2).addScaledVector(right, 0.9);
+    pullBack.y += 2.25;
+
+    await this.moveCamera(closeFront, face, 420);
+    await wait(340);
+    await this.moveCamera(lowFront, face, 620);
+    await wait(280);
+    await this.moveCamera(pullBack, face, 780);
   }
 
   setExploration(): void {

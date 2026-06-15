@@ -1,4 +1,4 @@
-import type { BattleTunables } from '../core/types';
+import type { BattleTunables, PhysicalMoveDefinition } from '../core/types';
 import type { Combatant } from './Combatant';
 
 export interface ActionResult {
@@ -13,13 +13,18 @@ export class ActionResolver {
     this.tunables = tunables;
   }
 
-  resolveAttack(attacker: Combatant, defender: Combatant): ActionResult {
+  resolvePhysicalMove(
+    attacker: Combatant,
+    defender: Combatant,
+    move: PhysicalMoveDefinition,
+  ): ActionResult {
     const rawDamage =
-      attacker.stats.strength * 4.2 +
-      attacker.stats.dexterity * 1.35 -
+      attacker.stats.strength * move.strengthScale +
+      attacker.stats.dexterity * move.dexterityScale +
+      move.flatBonus -
       defender.stats.defense * this.tunables.attackDefenseScale;
     const damage = defender.applyDamage(rawDamage);
-    attacker.gainChi(8);
+    attacker.gainChi(move.chiGain);
 
     return { damage, defeated: defender.hp <= 0 };
   }

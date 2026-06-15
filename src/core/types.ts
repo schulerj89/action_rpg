@@ -13,10 +13,13 @@ export type HeroAnimationKey =
   | 'idle'
   | 'run'
   | 'attack'
+  | 'kick'
   | 'chi'
   | 'slam'
   | 'hit'
   | 'victory';
+
+export type PhysicalMoveId = 'ironPalm' | 'dragonHeel';
 
 export interface HeroStats {
   strength: number;
@@ -42,6 +45,20 @@ export interface BattleSnapshot {
   enemy: CombatantSnapshot;
   canAct: boolean;
   logLine: string;
+}
+
+export interface PhysicalMoveDefinition {
+  id: PhysicalMoveId;
+  name: string;
+  animation: HeroAnimationKey;
+  strengthScale: number;
+  dexterityScale: number;
+  flatBonus: number;
+  chiGain: number;
+  stopDistance: number;
+  impactDelayMs: number;
+  recoveryMs: number;
+  timeScale: number;
 }
 
 export interface BattleTunables {
@@ -79,6 +96,7 @@ export interface RpgTestApi {
     playerHp: number;
     position: { x: number; z: number };
   };
+  forceEnemyReady: () => void;
   movePlayerToBattleTrigger: () => void;
   muteAudio: () => void;
   setEnemyHp: (value: number) => void;

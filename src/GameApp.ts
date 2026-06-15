@@ -152,6 +152,9 @@ export class GameApp {
       forceReady: () => {
         this.battle.forceReady();
       },
+      forceEnemyReady: () => {
+        this.battle.forceEnemyReady();
+      },
       getState: () => ({
         audioStatus: this.audio.getStatus(),
         battleState: this.battle.getPhase(),

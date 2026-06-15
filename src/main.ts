@@ -6,6 +6,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 
   <div class="cinematic-darkener" data-testid="cinematic-darkener"></div>
   <div class="cinematic-flash" data-testid="cinematic-flash"></div>
+  <div class="move-banner" data-testid="move-banner" hidden></div>
 
   <section class="battle-ui" data-testid="battle-ui" hidden>
     <div class="combatants">
@@ -28,7 +29,8 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <div class="battle-log" data-testid="battle-log"></div>
     </div>
     <div class="battle-actions">
-      <button type="button" data-testid="attack-action">Attack</button>
+      <button type="button" data-testid="attack-action">Iron Palm</button>
+      <button type="button" data-testid="kick-action">Dragon Heel</button>
       <button type="button" data-testid="chi-action">Chi Breaker</button>
       <button type="button" class="ghost" data-testid="reset-battle">Reset</button>
     </div>

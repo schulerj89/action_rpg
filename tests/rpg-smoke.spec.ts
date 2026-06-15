@@ -37,14 +37,33 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
   const initialEnemyHp = await enemyHp(page);
   await page.getByTestId('attack-action').click();
+  await expect(page.getByTestId('move-banner')).toContainText('Iron Palm Rush');
   await expect.poll(() => enemyHp(page)).toBeLessThan(initialEnemyHp);
+
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().battleState))
+    .toBe('charging');
+
+  const heroHpBeforeCounter = await playerHp(page);
+  await page.evaluate(() => window.__rpgTest?.forceEnemyReady());
+  await expect(page.getByTestId('move-banner')).toContainText('Pulse Ram');
+  await expect.poll(() => playerHp(page)).toBeLessThan(heroHpBeforeCounter);
+
+  await page.evaluate(() => window.__rpgTest?.forceReady());
+  await expect(page.getByTestId('kick-action')).toBeEnabled();
+
+  const afterPunchHp = await enemyHp(page);
+  await page.getByTestId('kick-action').click();
+  await expect(page.getByTestId('move-banner')).toContainText('Dragon Heel Kick');
+  await expect.poll(() => enemyHp(page)).toBeLessThan(afterPunchHp);
 
   await page.evaluate(() => window.__rpgTest?.forceReady());
   await expect(page.getByTestId('chi-action')).toBeEnabled();
 
-  const afterAttackHp = await enemyHp(page);
+  const afterKickHp = await enemyHp(page);
   await page.getByTestId('chi-action').click();
-  await expect.poll(() => enemyHp(page), { timeout: 8_000 }).toBeLessThan(afterAttackHp);
+  await expect(page.getByTestId('move-banner')).toContainText('Chi Breaker');
+  await expect.poll(() => enemyHp(page), { timeout: 8_000 }).toBeLessThan(afterKickHp);
 
   await page.evaluate(() => {
     window.__rpgTest?.setEnemyHp(1);
@@ -69,4 +88,8 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
 async function enemyHp(page: { getByTestId: (testId: string) => { textContent: () => Promise<string | null> } }) {
   return Number(await page.getByTestId('enemy-hp').textContent());
+}
+
+async function playerHp(page: { getByTestId: (testId: string) => { textContent: () => Promise<string | null> } }) {
+  return Number(await page.getByTestId('player-hp').textContent());
 }

@@ -1,7 +1,12 @@
 import { Vector3 } from 'three';
-import { enemyBaseStats, heroBaseStats, battleTunables } from '../config/combatConfig';
+import {
+  enemyBaseStats,
+  heroBaseStats,
+  battleTunables,
+  playerPhysicalMoves,
+} from '../config/combatConfig';
 import { wait } from '../core/tween';
-import type { BattlePhase, BattleSnapshot, HeroStats } from '../core/types';
+import type { BattlePhase, BattleSnapshot, HeroStats, PhysicalMoveDefinition } from '../core/types';
 import type { AudioDirector } from '../audio/AudioDirector';
 import type { EnemyShape } from '../entities/EnemyShape';
 import type { HeroCharacter } from '../entities/HeroCharacter';
@@ -55,7 +60,10 @@ export class BattleDirector {
     this.vfx = deps.vfx;
 
     this.hud.onAttack(() => {
-      void this.executeAttack();
+      void this.executePhysicalMove(playerPhysicalMoves.ironPalm);
+    });
+    this.hud.onKick(() => {
+      void this.executePhysicalMove(playerPhysicalMoves.dragonHeel);
     });
     this.hud.onChi(() => {
       void this.executeChi();
@@ -124,6 +132,14 @@ export class BattleDirector {
     this.atb.forceReady(this.player);
   }
 
+  forceEnemyReady(): void {
+    if (this.phase !== 'charging' && this.phase !== 'awaitingCommand') {
+      return;
+    }
+
+    this.atb.forceReady(this.enemyCombatant);
+  }
+
   setEnemyHp(value: number): void {
     this.enemyCombatant.setHp(value);
   }
@@ -162,21 +178,22 @@ export class BattleDirector {
     return this.phase;
   }
 
-  private async executeAttack(): Promise<void> {
+  private async executePhysicalMove(move: PhysicalMoveDefinition): Promise<void> {
     if (this.phase !== 'awaitingCommand' || this.player.atb < battleTunables.atbMax) {
       return;
     }
 
     this.phase = 'playerAction';
     this.atb.consume(this.player);
-    this.logLine = 'Ryuji rushes in.';
+    this.logLine = `${move.name}.`;
+    this.hud.showMoveBanner(this.player.name, move.name);
     this.hud.update(this.snapshot());
 
-    await this.animator.heroAttack(this.hero, this.enemy.root.position, this.heroAnchor, () => {
-      const result = this.resolver.resolveAttack(this.player, this.enemyCombatant);
+    await this.animator.heroPhysicalMove(this.hero, this.enemy.root.position, this.heroAnchor, move, () => {
+      const result = this.resolver.resolvePhysicalMove(this.player, this.enemyCombatant, move);
       this.enemy.flashHit();
       this.vfx.burstAt(this.enemy.root.position);
-      this.logLine = `Attack dealt ${result.damage}.`;
+      this.logLine = `${move.name} dealt ${result.damage}.`;
       window.dispatchEvent(new CustomEvent('rpg:action-resolved', { detail: result }));
     });
 
@@ -200,7 +217,8 @@ export class BattleDirector {
 
     this.phase = 'chiCinematic';
     this.atb.consume(this.player);
-    this.logLine = 'Chi surge.';
+    this.logLine = 'Chi Breaker.';
+    this.hud.showMoveBanner(this.player.name, 'Chi Breaker');
     this.hud.setDarkened(true);
     this.vfx.setAura(true);
     this.hero.play('chi', { loopOnce: true, fadeSeconds: 0.1, timeScale: 0.92 });
@@ -239,7 +257,8 @@ export class BattleDirector {
 
     this.phase = 'enemyAction';
     this.atb.consume(this.enemyCombatant);
-    this.logLine = 'Training core counters.';
+    this.logLine = 'Pulse Ram.';
+    this.hud.showMoveBanner(this.enemyCombatant.name, 'Pulse Ram');
 
     await this.animator.enemyAttack(this.enemy, this.hero.root.position, this.enemyAnchor, () => {
       const result = this.resolver.resolveEnemyAttack(this.enemyCombatant, this.player);
@@ -264,10 +283,11 @@ export class BattleDirector {
     this.logLine = 'Victory.';
     this.enemy.root.visible = false;
     this.hud.update(this.snapshot());
+    this.audio.playVictory();
     window.dispatchEvent(new CustomEvent('rpg:victory'));
     await Promise.all([
       this.animator.heroVictory(this.hero),
-      this.cameraRig.victoryView(this.hero.root.position, this.enemy.root.position),
+      this.cameraRig.victorySequence(this.hero.root.position, this.enemy.root.position),
     ]);
 
     this.resetTimer = window.setTimeout(() => {
