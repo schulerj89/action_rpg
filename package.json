@@ -1,0 +1,22 @@
+{
+  "name": "action_rpg",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "smoke": "playwright test",
+    "smoke:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.12"
+  },
+  "dependencies": {
+    "@types/three": "^0.184.1",
+    "three": "^0.184.0"
+  }
+}
