@@ -20,7 +20,21 @@ export class BattleHud {
   private readonly playerChi: HTMLElement;
   private readonly enemyAtb: HTMLElement;
   private readonly log: HTMLElement;
+  private readonly actionActor: HTMLElement;
+  private readonly actionHint: HTMLElement;
   private readonly moveButtons: HTMLButtonElement[];
+  private readonly partyAtbList: HTMLElement;
+  private readonly partyMeterEls = new Map<
+    string,
+    {
+      atbFill: HTMLElement;
+      hp: HTMLElement;
+      ready: HTMLElement;
+      resource: HTMLElement;
+      root: HTMLElement;
+    }
+  >();
+  private partyMeterKey = '';
   private readonly supportSlots: Array<{
     name: HTMLElement;
     root: HTMLElement;
@@ -53,6 +67,9 @@ export class BattleHud {
     const playerChi = root.querySelector<HTMLElement>('[data-testid="player-chi"]');
     const enemyAtb = root.querySelector<HTMLElement>('[data-testid="enemy-atb"]');
     const log = root.querySelector<HTMLElement>('[data-testid="battle-log"]');
+    const actionActor = root.querySelector<HTMLElement>('[data-testid="battle-active-actor"]');
+    const actionHint = root.querySelector<HTMLElement>('[data-testid="battle-action-hint"]');
+    const partyAtbList = root.querySelector<HTMLElement>('[data-testid="party-atb-list"]');
     const supportSlots = [0, 1].map((index) => ({
       name: root.querySelector<HTMLElement>(`[data-testid="ally-slot-${index}-name"]`),
       root: root.querySelector<HTMLElement>(`[data-testid="ally-slot-${index}"]`),
@@ -89,6 +106,9 @@ export class BattleHud {
       !playerChi ||
       !enemyAtb ||
       !log ||
+      !actionActor ||
+      !actionHint ||
+      !partyAtbList ||
       supportSlots.some((slot) => !slot.name || !slot.root || !slot.status) ||
       moveButtons.some((button) => !button) ||
       !resetButton ||
@@ -119,6 +139,9 @@ export class BattleHud {
     this.playerChi = playerChi;
     this.enemyAtb = enemyAtb;
     this.log = log;
+    this.actionActor = actionActor;
+    this.actionHint = actionHint;
+    this.partyAtbList = partyAtbList;
     this.supportSlots = supportSlots as Array<{
       name: HTMLElement;
       root: HTMLElement;
@@ -264,6 +287,14 @@ export class BattleHud {
     this.playerChi.textContent = String(snapshot.player.chi);
     this.enemyAtb.textContent = String(Math.round(snapshot.enemy.atb));
     this.log.textContent = snapshot.logLine;
+    this.renderPartyMeters(snapshot);
+
+    this.actionActor.textContent = activeMember ? activeMember.name : 'Waiting';
+    this.actionHint.textContent = snapshot.canAct
+      ? `${resourceName(activeMember?.role ?? 'Fighter')} ${activeMember?.chi ?? 0}/${activeMember?.maxChi ?? 0}`
+      : snapshot.phase === 'enemyAction'
+        ? 'Enemy action'
+        : 'ATB charging';
 
     this.supportSlots.forEach((slot, index) => {
       const member = snapshot.party[index + 1];
@@ -289,10 +320,63 @@ export class BattleHud {
       const move = snapshot.equippedMoves[index];
       button.textContent = move?.name ?? 'Empty';
       button.disabled = !snapshot.canAct || !move || (activeMember?.chi ?? 0) < move.chiCost;
+      button.title = move ? `${move.name} | Cost ${move.chiCost} ${resourceName(activeMember?.role ?? 'Fighter')}` : 'Empty slot';
       button.dataset.moveId = move?.id ?? '';
     });
     this.victoryState.hidden = snapshot.phase !== 'victory';
     this.playerAtbFill.style.setProperty('--atb-progress', `${Math.min(snapshot.player.atb, 100)}%`);
+  }
+
+  private renderPartyMeters(snapshot: BattleSnapshot): void {
+    const key = snapshot.party.map((member) => `${member.id}:${member.active}`).join('|');
+    if (key !== this.partyMeterKey) {
+      this.partyAtbList.innerHTML = '';
+      this.partyMeterEls.clear();
+      snapshot.party.forEach((member) => {
+        const card = document.createElement('article');
+        card.className = 'party-atb-card';
+        card.dataset.testid = `party-card-${member.id}`;
+
+        const header = document.createElement('header');
+        const name = document.createElement('strong');
+        name.textContent = member.name;
+        const ready = document.createElement('span');
+        ready.dataset.testid = `party-ready-${member.id}`;
+        ready.className = 'party-ready';
+        header.append(name, ready);
+
+        const hp = document.createElement('span');
+        hp.dataset.testid = `party-hp-${member.id}`;
+        const resource = document.createElement('span');
+        resource.dataset.testid = `party-resource-${member.id}`;
+
+        const atbTrack = document.createElement('div');
+        atbTrack.className = 'atb-track';
+        const atbFill = document.createElement('div');
+        atbFill.className = 'atb-fill';
+        atbFill.dataset.testid = `party-atb-fill-${member.id}`;
+        atbTrack.append(atbFill);
+
+        card.append(header, hp, resource, atbTrack);
+        this.partyAtbList.append(card);
+        this.partyMeterEls.set(member.id, { atbFill, hp, ready, resource, root: card });
+      });
+      this.partyMeterKey = key;
+    }
+
+    snapshot.party.forEach((member) => {
+      const els = this.partyMeterEls.get(member.id);
+      if (!els) {
+        return;
+      }
+
+      els.root.classList.toggle('inactive', !member.active);
+      els.root.classList.toggle('active-turn', member.canAct);
+      els.hp.textContent = `${member.hp}/${member.maxHp} HP`;
+      els.resource.textContent = `${member.chi}/${member.maxChi} ${resourceName(member.role)}`;
+      els.ready.textContent = member.canAct ? 'Ready' : member.active ? `${Math.round(member.atb)}` : 'Out';
+      els.atbFill.style.setProperty('--atb-progress', `${Math.min(member.atb, 100)}%`);
+    });
   }
 }
 

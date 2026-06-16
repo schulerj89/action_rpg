@@ -135,13 +135,30 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('game-menu')).toBeHidden();
 
   await page.evaluate(() => window.__rpgTest?.enterShop('weapons'));
-  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().currentRoom)).toBe('shop');
-  await expect(page.getByTestId('shop-panel')).toBeVisible();
-  await expect(page.getByTestId('shop-title')).toHaveText('Weapon Shop');
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().currentRoom), { timeout: 90_000 }).toBe('shop');
+  await expect(page.getByTestId('scene-loading')).toBeHidden();
+  await expect(page.getByTestId('shop-panel')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().shopId)).toBe('weapons');
   await page.waitForTimeout(900);
   await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(true, true));
-  await page.screenshot({ path: `${qaScreenshotDir}/shop-weapon-interior.png` });
+  await page.screenshot({ path: `${qaScreenshotDir}/shop-weapon-walkable.png` });
   await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(false));
+  const shopStart = await page.evaluate(() => window.__rpgTest?.getState().position);
+  await page.keyboard.down('ArrowUp');
+  await page.waitForTimeout(520);
+  await page.keyboard.up('ArrowUp');
+  const shopMoved = await page.evaluate(() => window.__rpgTest?.getState().position);
+  expect(shopMoved?.z).toBeLessThan((shopStart?.z ?? 0) - 0.25);
+  await page.evaluate(() => {
+    window.__rpgTest?.setPlayerPosition(0, -0.65);
+    window.__rpgTest?.openShopInteraction();
+  });
+  await expect(page.getByTestId('dialogue-box')).toBeVisible();
+  await expect(page.getByTestId('dialogue-speaker')).toHaveText('Taro');
+  await page.getByTestId('dialogue-next').click();
+  await expect(page.getByTestId('shop-panel')).toBeVisible();
+  await expect(page.getByTestId('shop-title')).toHaveText('Weapon Shop');
+  await page.screenshot({ path: `${qaScreenshotDir}/shop-weapon-menu-fullscreen.png` });
   await page.getByTestId('shop-buy-copper-handwraps').click();
   await page.getByTestId('shop-equip-copper-handwraps').click();
   await expect
@@ -149,14 +166,25 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
     .toBe('copper-handwraps');
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().economy.gold)).toBe(120);
   await page.getByTestId('shop-close').click();
+  await expect(page.getByTestId('shop-panel')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().currentRoom)).toBe('shop');
+  await page.evaluate(() => window.__rpgTest?.setPlayerPosition(0, 4.2));
+  await page.keyboard.press('KeyE');
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().currentRoom)).toBe('town');
 
   await page.evaluate(() => window.__rpgTest?.enterShop('potions'));
-  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().shopId)).toBe('potions');
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().shopId), { timeout: 90_000 }).toBe('potions');
+  await expect(page.getByTestId('shop-panel')).toBeHidden();
+  await page.evaluate(() => {
+    window.__rpgTest?.setPlayerPosition(0, -0.65);
+    window.__rpgTest?.openShopInteraction();
+  });
+  await expect(page.getByTestId('dialogue-speaker')).toHaveText('Luma');
+  await page.getByTestId('dialogue-next').click();
   await expect(page.getByTestId('shop-title')).toHaveText('Potion Store');
   await page.waitForTimeout(900);
   await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(true, true));
-  await page.screenshot({ path: `${qaScreenshotDir}/shop-potion-interior.png` });
+  await page.screenshot({ path: `${qaScreenshotDir}/shop-potion-menu-fullscreen.png` });
   await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(false));
   await page.getByTestId('shop-buy-small-potion').click();
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().economy.inventory['small-potion'])).toBe(3);
@@ -257,11 +285,16 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('battle-ui')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().enemyVisual.modelId)).toBe('shellback-guardian');
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().townOccludersVisible)).toBe(false);
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().battleRoomInfo.visible)).toBe(true);
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().position.z)).toBeLessThan(-18);
+  await expect(page.getByTestId('party-card-ryuji')).toBeVisible();
+  await expect(page.getByTestId('party-atb-fill-ryuji')).toHaveAttribute('style', /--atb-progress/);
   await expect(page.getByTestId('ally-slot-0-name')).toHaveText('Mira Sol');
   await expect(page.getByTestId('ally-slot-0-status')).toContainText('Mage');
   await expect(page.getByTestId('ally-slot-0-status')).toContainText('Mana');
   await expect(page.getByTestId('ally-slot-0-status')).not.toContainText('Chi');
+  await expect(page.getByTestId('party-card-mira')).toBeVisible();
+  await expect(page.getByTestId('party-atb-fill-mira')).toHaveAttribute('style', /--atb-progress/);
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().visualState.attachments.mira?.find((item) => item.id === 'staff')?.visible))
     .toBe(true);
@@ -270,19 +303,37 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   );
   expect((staffBounds?.max.y ?? 0) - (staffBounds?.min.y ?? 0)).toBeGreaterThan(0.4);
   await page.screenshot({ path: `${qaScreenshotDir}/battle-hud-boss-party.png` });
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-hud-multi-atb-ready.png` });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(140);
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-hud-mobile-party-atb.png` });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.waitForTimeout(140);
 
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().battleState))
     .toMatch(/charging|awaitingCommand/);
 
   const heroHpBeforeCounter = await playerHp(page);
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(true));
   await page.evaluate(() => window.__rpgTest?.forceEnemyReady());
   await expect(page.getByTestId('move-banner')).toContainText('Pulse Ram');
   await expect(page.getByTestId('move-banner')).toHaveClass(/enemy/);
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.preset), { timeout: 5_000 })
+    .toMatch(/battle\.enemy\.windup/);
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-enemy-pulse-ram-windup.png` });
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.preset), { timeout: 6_000 })
+    .toMatch(/battle\.enemy\.impact/);
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-enemy-pulse-ram-impact.png` });
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(false));
   await expect.poll(() => playerHp(page)).toBeLessThan(heroHpBeforeCounter);
   await waitForActionRecovery(page);
 
   await page.evaluate(() => window.__rpgTest?.forceHeroReady('mira'));
+  await expect(page.getByTestId('battle-active-actor')).toHaveText('Mira Sol');
+  await expect(page.getByTestId('party-ready-mira')).toHaveText('Ready');
   await expect(page.getByTestId('move-slot-0')).toHaveText('Spirit Flare');
   await expect(page.getByTestId('move-slot-0')).toBeEnabled();
   const enemyHpBeforeMira = await enemyHp(page);
@@ -441,6 +492,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().battleState))
     .toBe('exploration');
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().townOccludersVisible)).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().battleRoomInfo.visible)).toBe(false);
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().position.z))
     .toBeGreaterThan(6);

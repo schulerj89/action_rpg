@@ -22,12 +22,14 @@ import {
   createBattleTriggerPad,
   createCollisionOverlay,
   createGrassField,
+  createTerrainPatch,
   createTownBuilding,
   createTownGround,
   createTownNpc,
   createTownWell,
   createWallSegmentFallback,
 } from './TownPrimitiveFactory';
+import { loadFirstTownRegionMap, type FirstTownRegionMap } from './FirstTownRegionMap';
 
 export class FirstTownScene {
   readonly battleTriggerPad: Mesh;
@@ -37,6 +39,7 @@ export class FirstTownScene {
   readonly spawn = firstTownSpawn.clone();
 
   private readonly combatHiddenRoot = new Group();
+  private readonly streamedTerrainRoot = new Group();
   private readonly collisionOverlayRoot = createCollisionOverlay(firstTownColliders);
   private readonly assetSystem = new TownAssetSystem(firstTownAssetDefinitions);
   private readonly collision = new CollisionResolver(firstTownColliders);
@@ -44,11 +47,14 @@ export class FirstTownScene {
   private readonly interactions: InteractionTrigger[] = [];
   private readonly npcBaseRotations = new Map<string, number>();
   private readonly npcRoots = new Map<string, Group>();
+  private regionMap?: FirstTownRegionMap;
 
   constructor() {
     this.root.name = 'first-town';
     this.combatHiddenRoot.name = 'first-town-combat-hidden';
+    this.streamedTerrainRoot.name = 'first-town-streamed-terrain';
     this.root.add(createTownGround(), createGrassField(), this.combatHiddenRoot, this.collisionOverlayRoot);
+    this.combatHiddenRoot.add(this.streamedTerrainRoot);
     this.addFallback('town-well', createTownWell(), this.combatHiddenRoot);
 
     firstTownBuildings.forEach((building) => {
@@ -95,7 +101,7 @@ export class FirstTownScene {
   }
 
   async loadMeshyProps(): Promise<void> {
-    await this.assetSystem.loadAssets(this.getRequiredAssetIds());
+    await Promise.all([this.assetSystem.loadAssets(this.getRequiredAssetIds()), this.loadRegionMap()]);
     this.addGroundAssets();
     this.addBuildingAssets();
     this.addNpcAssets();
@@ -109,7 +115,7 @@ export class FirstTownScene {
     this.npcRoots.forEach((npc, dialogueId) => {
       const baseRotation = this.npcBaseRotations.get(dialogueId) ?? npc.rotation.y;
       npc.rotation.y = baseRotation + Math.sin(performance.now() * 0.0014 + index) * 0.08;
-      npc.position.y = Math.sin(performance.now() * 0.0021 + index) * 0.025;
+      npc.position.y = 0;
       index += 1;
     });
   }
@@ -162,6 +168,19 @@ export class FirstTownScene {
 
   getAssetSnapshot(): TownAssetSystemSnapshot {
     return this.assetSystem.snapshot();
+  }
+
+  getRegionMapSnapshot(): Pick<FirstTownRegionMap, 'activeZones' | 'battleScenes' | 'id' | 'version'> | undefined {
+    if (!this.regionMap) {
+      return undefined;
+    }
+
+    return {
+      activeZones: [...this.regionMap.activeZones],
+      battleScenes: [...this.regionMap.battleScenes],
+      id: this.regionMap.id,
+      version: this.regionMap.version,
+    };
   }
 
   getFallbackIds(): string[] {
@@ -243,6 +262,21 @@ export class FirstTownScene {
       this.hideFallback(placement.id);
       parent.add(model);
     });
+  }
+
+  private async loadRegionMap(): Promise<void> {
+    try {
+      this.regionMap = await loadFirstTownRegionMap();
+      this.streamedTerrainRoot.clear();
+      const activeZones = new Set(this.regionMap.activeZones);
+      this.regionMap.terrainPatches
+        .filter((patch) => activeZones.has(patch.zoneId))
+        .forEach((patch) => {
+          this.streamedTerrainRoot.add(createTerrainPatch(patch));
+        });
+    } catch {
+      this.regionMap = undefined;
+    }
   }
 
   private addFallback(id: string, root: Group, parent: Group): void {

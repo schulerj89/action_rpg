@@ -273,8 +273,17 @@ export const firstTownWallSegments: TownAssetPlacement[] = [
   ]),
 ];
 
+export const firstTownNpcColliders: AabbCollider[] = firstTownNpcs.map((npc) => ({
+  id: `npc-${npc.dialogueId}`,
+  maxX: npc.position.x + 0.48,
+  maxZ: npc.position.z + 0.48,
+  minX: npc.position.x - 0.48,
+  minZ: npc.position.z - 0.48,
+}));
+
 export const firstTownColliders: AabbCollider[] = [
   ...firstTownBuildings.map((building) => building.collider),
+  ...firstTownNpcColliders,
   { id: 'well', minX: -0.9, maxX: 0.9, minZ: -2.25, maxZ: -0.6 },
   { id: 'north-wall-left', minX: -18.2, maxX: -4.35, minZ: -17.9, maxZ: -15.8 },
   { id: 'north-wall-right', minX: 4.35, maxX: 18.2, minZ: -17.9, maxZ: -15.8 },

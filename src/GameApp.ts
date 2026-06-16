@@ -37,6 +37,7 @@ import { EncounterTrigger } from './world/EncounterTrigger';
 import { DialogueRepository, type SceneDialogue } from './world/dialogue/DialogueRepository';
 import { createWorldScene } from './world/SceneFactory';
 import type { WorldScene } from './world/SceneFactory';
+import { BattleSceneRoom } from './world/battle/BattleSceneRoom';
 import { AssetInspectionRoom } from './world/debug/AssetInspectionRoom';
 import type { InteractionTrigger } from './world/InteractionTrigger';
 import { ShopInteriorScene } from './world/shops/ShopInteriorScene';
@@ -56,6 +57,7 @@ export class GameApp {
   private readonly audio = new AudioDirector();
   private readonly assetRoom: AssetInspectionRoom;
   private readonly battle: BattleDirector;
+  private readonly battleRoom = new BattleSceneRoom();
   private readonly cameraRig: CameraRig;
   private readonly debugPanel: DebugPanel;
   private readonly dialogueBox: DialogueBox;
@@ -88,7 +90,9 @@ export class GameApp {
   private readonly openingCaption: HTMLElement;
   private readonly openingCaptionText: HTMLElement;
   private readonly qaCaption: HTMLElement;
-  private readonly transitionIris: HTMLElement;
+  private readonly sceneLoading: HTMLElement;
+  private readonly sceneLoadingDetail: HTMLElement;
+  private readonly sceneLoadingTitle: HTMLElement;
   private readonly equippedWeaponByHero: Record<PartyHeroId, string> = { ...defaultEquippedWeaponByHero };
   private readonly inventory = new Map<string, number>(Object.entries(startingInventory));
   private reverseTurnTargetYaw?: number;
@@ -117,14 +121,25 @@ export class GameApp {
     const openingCaption = document.querySelector<HTMLElement>('[data-testid="opening-caption"]');
     const openingCaptionText = document.querySelector<HTMLElement>('[data-testid="opening-caption-text"]');
     const qaCaption = document.querySelector<HTMLElement>('[data-testid="qa-caption"]');
-    const transitionIris = document.querySelector<HTMLElement>('[data-testid="transition-iris"]');
-    if (!openingCaption || !openingCaptionText || !qaCaption || !transitionIris) {
+    const sceneLoading = document.querySelector<HTMLElement>('[data-testid="scene-loading"]');
+    const sceneLoadingDetail = document.querySelector<HTMLElement>('[data-testid="scene-loading-detail"]');
+    const sceneLoadingTitle = document.querySelector<HTMLElement>('[data-testid="scene-loading-title"]');
+    if (
+      !openingCaption ||
+      !openingCaptionText ||
+      !qaCaption ||
+      !sceneLoading ||
+      !sceneLoadingDetail ||
+      !sceneLoadingTitle
+    ) {
       throw new Error('Opening cinematic markup is missing.');
     }
     this.openingCaption = openingCaption;
     this.openingCaptionText = openingCaptionText;
     this.qaCaption = qaCaption;
-    this.transitionIris = transitionIris;
+    this.sceneLoading = sceneLoading;
+    this.sceneLoadingDetail = sceneLoadingDetail;
+    this.sceneLoadingTitle = sceneLoadingTitle;
     this.hud = new BattleHud(document);
     this.gameMenu = new GameMenu(document);
     this.shopPanel = new ShopPanel(document, {
@@ -132,7 +147,7 @@ export class GameApp {
         this.buyItem(itemId);
       },
       onClose: () => {
-        void this.exitSpecialRoom();
+        this.closeShopMenu();
       },
       onEquip: (itemId) => {
         this.equipWeapon(itemId);
@@ -194,7 +209,7 @@ export class GameApp {
         void this.enterShop(shopId);
       },
       onStartBattle: () => {
-        void this.battle.startBattle();
+        void this.startBattleFromCurrentContext();
       },
       onStatChange: (heroId, key, value) => {
         this.battle.updateHeroStat(heroId, key, value);
@@ -225,6 +240,7 @@ export class GameApp {
 
     this.world.scene.add(
       this.town.root,
+      this.battleRoom.root,
       this.shopInteriors.root,
       this.assetRoom.root,
       this.weather.root,
@@ -330,7 +346,7 @@ export class GameApp {
       return;
     }
 
-    if (this.currentRoom !== 'town') {
+    if (this.currentRoom === 'asset-room') {
       this.explorationVelocity.set(0, 0, 0);
       this.hero.play('explorationIdle');
       if (this.cameraRig.getMode() === 'free') {
@@ -340,7 +356,7 @@ export class GameApp {
       return;
     }
 
-    if (this.cinematicActive || this.gameMenu.isActive()) {
+    if (this.cinematicActive || this.gameMenu.isActive() || this.shopPanel.isActive()) {
       this.explorationVelocity.set(0, 0, 0);
       this.hero.play('explorationIdle');
       if (this.cameraRig.getMode() === 'free') {
@@ -360,67 +376,88 @@ export class GameApp {
       return;
     }
 
-    if (this.battle.getPhase() === 'exploration') {
-      if (this.cameraRig.getMode() === 'free') {
-        this.explorationVelocity.set(0, 0, 0);
-        this.hero.play('explorationIdle');
-        this.cameraRig.updateFreeCamera(this.input.getFreeCameraAxes(), deltaSeconds);
-        this.updateSupportHeroes(deltaSeconds, true);
-        return;
-      }
-
-      const input = this.input.getMovementAxes();
-      if (input.turn !== 0) {
-        this.hero.root.rotation.y -= input.turn * explorationPivotTurnSpeed * deltaSeconds;
-        this.reverseTurnTargetYaw = undefined;
-      }
-      if (input.reverse) {
-        this.reverseTurnTargetYaw ??= this.hero.root.rotation.y + Math.PI;
-        this.hero.root.rotation.y = turnTowardAngle(
-          this.hero.root.rotation.y,
-          this.reverseTurnTargetYaw,
-          explorationReverseTurnSpeed * deltaSeconds,
+    if (this.currentRoom === 'shop') {
+      if (this.battle.getPhase() === 'exploration') {
+        this.updateRoomMovement(
+          deltaSeconds,
+          (previous, proposed) => this.shopInteriors.resolvePlayerPosition(previous, proposed),
+          false,
         );
-      } else {
-        this.reverseTurnTargetYaw = undefined;
+        this.updateSupportHeroes(deltaSeconds, true);
       }
+      return;
+    }
 
-      setYawForward(this.hero.root.rotation.y, this.heroForward);
-
-      const hasMovementInput = input.forward > 0;
-      this.targetVelocity.copy(this.heroForward).multiplyScalar(hasMovementInput ? playerMoveSpeed : 0);
-      const moveRate = hasMovementInput ? explorationAcceleration : explorationDeceleration;
-
-      moveVectorToward(this.explorationVelocity, this.targetVelocity, moveRate * deltaSeconds);
-
-      if (this.explorationVelocity.lengthSq() < movementStopThreshold * movementStopThreshold) {
-        this.explorationVelocity.set(0, 0, 0);
-      }
-
-      this.previousHeroPosition.copy(this.hero.root.position);
-      this.proposedHeroPosition.copy(this.hero.root.position).addScaledVector(this.explorationVelocity, deltaSeconds);
-      this.hero.root.position.copy(this.town.resolvePlayerPosition(this.previousHeroPosition, this.proposedHeroPosition));
-
-      if (this.explorationVelocity.lengthSq() > movementStopThreshold * movementStopThreshold) {
-        this.hero.play('run');
-      } else {
-        this.hero.play('explorationIdle');
-      }
-
-      this.movement.copy(this.explorationVelocity);
-      if (this.movement.lengthSq() > 0) {
-        this.movement.normalize();
-      }
-
-      this.cameraRig.updateExploration(this.hero.root.position, this.heroForward, deltaSeconds);
+    if (this.battle.getPhase() === 'exploration') {
+      this.updateRoomMovement(deltaSeconds, (previous, proposed) => this.town.resolvePlayerPosition(previous, proposed), true);
       this.updateSupportHeroes(deltaSeconds, true);
 
       if (this.trigger.check(this.hero.root.position)) {
-        void this.battle.startBattle();
+        void this.startBattleFromCurrentContext();
       }
     } else {
       this.explorationVelocity.set(0, 0, 0);
       this.updateSupportHeroes(deltaSeconds, false);
+    }
+  }
+
+  private updateRoomMovement(
+    deltaSeconds: number,
+    resolvePosition: (previous: Vector3, proposed: Vector3) => Vector3,
+    followCamera: boolean,
+  ): void {
+    if (this.cameraRig.getMode() === 'free') {
+      this.explorationVelocity.set(0, 0, 0);
+      this.hero.play('explorationIdle');
+      this.cameraRig.updateFreeCamera(this.input.getFreeCameraAxes(), deltaSeconds);
+      return;
+    }
+
+    const input = this.input.getMovementAxes();
+    if (input.turn !== 0) {
+      this.hero.root.rotation.y -= input.turn * explorationPivotTurnSpeed * deltaSeconds;
+      this.reverseTurnTargetYaw = undefined;
+    }
+    if (input.reverse) {
+      this.reverseTurnTargetYaw ??= this.hero.root.rotation.y + Math.PI;
+      this.hero.root.rotation.y = turnTowardAngle(
+        this.hero.root.rotation.y,
+        this.reverseTurnTargetYaw,
+        explorationReverseTurnSpeed * deltaSeconds,
+      );
+    } else {
+      this.reverseTurnTargetYaw = undefined;
+    }
+
+    setYawForward(this.hero.root.rotation.y, this.heroForward);
+
+    const hasMovementInput = input.forward > 0;
+    this.targetVelocity.copy(this.heroForward).multiplyScalar(hasMovementInput ? playerMoveSpeed : 0);
+    const moveRate = hasMovementInput ? explorationAcceleration : explorationDeceleration;
+
+    moveVectorToward(this.explorationVelocity, this.targetVelocity, moveRate * deltaSeconds);
+
+    if (this.explorationVelocity.lengthSq() < movementStopThreshold * movementStopThreshold) {
+      this.explorationVelocity.set(0, 0, 0);
+    }
+
+    this.previousHeroPosition.copy(this.hero.root.position);
+    this.proposedHeroPosition.copy(this.hero.root.position).addScaledVector(this.explorationVelocity, deltaSeconds);
+    this.hero.root.position.copy(resolvePosition(this.previousHeroPosition, this.proposedHeroPosition));
+
+    if (this.explorationVelocity.lengthSq() > movementStopThreshold * movementStopThreshold) {
+      this.hero.play('run');
+    } else {
+      this.hero.play('explorationIdle');
+    }
+
+    this.movement.copy(this.explorationVelocity);
+    if (this.movement.lengthSq() > 0) {
+      this.movement.normalize();
+    }
+
+    if (followCamera) {
+      this.cameraRig.updateExploration(this.hero.root.position, this.heroForward, deltaSeconds);
     }
   }
 
@@ -432,6 +469,8 @@ export class GameApp {
 
     this.townCombatMode = enabled;
     this.town.setCombatMode(enabled);
+    this.battleRoom.setVisible(enabled);
+    this.town.root.visible = !enabled && this.currentRoom === 'town';
   }
 
   private createBattleParty(): BattlePartyMemberConfig[] {
@@ -620,6 +659,20 @@ export class GameApp {
         return;
       }
 
+      if (this.shopPanel.isActive()) {
+        return;
+      }
+
+      if (this.currentRoom === 'shop') {
+        event.preventDefault();
+        if (!this.openShopInteraction()) {
+          if (this.shopInteriors.isNearExit(this.hero.root.position)) {
+            void this.exitSpecialRoom();
+          }
+        }
+        return;
+      }
+
       if (this.currentRoom !== 'town') {
         event.preventDefault();
         void this.exitSpecialRoom();
@@ -657,6 +710,12 @@ export class GameApp {
       if (event.code === 'Escape' && this.gameMenu.isActive()) {
         event.preventDefault();
         this.gameMenu.hide();
+        return;
+      }
+
+      if (event.code === 'Escape' && this.shopPanel.isActive()) {
+        event.preventDefault();
+        this.closeShopMenu();
       }
     });
   }
@@ -675,6 +734,26 @@ export class GameApp {
     return this.openDialogue(interaction);
   }
 
+  private openShopInteraction(): boolean {
+    const vendor = this.shopInteriors.findNearestVendor(this.hero.root.position);
+    if (!vendor) {
+      return false;
+    }
+
+    this.dialogueBox.showText(vendor.name, vendor.line, () => {
+      this.openShopMenu(vendor.shopId);
+    });
+    return true;
+  }
+
+  private openShopMenu(shopId: ShopId): void {
+    this.shopPanel.show(shopId, getShopStock(shopId), this.getEconomySnapshot());
+  }
+
+  private closeShopMenu(): void {
+    this.shopPanel.hide();
+  }
+
   private openDialogue(interaction: InteractionTrigger | string): boolean {
     const npcId = typeof interaction === 'string' ? interaction : interaction.npcId;
     return npcId ? this.dialogueBox.show(this.sceneDialogue, npcId) : false;
@@ -685,11 +764,15 @@ export class GameApp {
       return;
     }
 
-    await this.shopInteriors.loadGeneratedAssets();
-    await this.irisTransition(() => {
+    await this.sceneLoadTransition(
+      'Loading shop',
+      shopId === 'weapons' ? 'Preparing the weapon counter...' : 'Preparing the potion counter...',
+      () => this.shopInteriors.loadGeneratedAssets(),
+      () => {
       this.currentRoom = 'shop';
       this.town.root.visible = false;
       this.assetRoom.hide();
+      this.shopPanel.hide();
       this.shopInteriors.showShop(shopId);
       this.hero.root.position.copy(this.shopInteriors.entry);
       this.hero.root.rotation.y = Math.PI;
@@ -697,8 +780,8 @@ export class GameApp {
       this.explorationVelocity.set(0, 0, 0);
       this.updateSupportHeroVisibility();
       this.cameraRig.setDebugPose(this.shopInteriors.camera, this.shopInteriors.lookAt, 48, `shop.${shopId}`);
-      this.shopPanel.show(shopId, getShopStock(shopId), this.getEconomySnapshot());
-    });
+      },
+    );
   }
 
   private async enterAssetRoom(): Promise<void> {
@@ -706,8 +789,11 @@ export class GameApp {
       return;
     }
 
-    await this.assetRoom.loadAssets();
-    await this.irisTransition(() => {
+    await this.sceneLoadTransition(
+      'Loading asset room',
+      'Unloading the current room and preparing inspection lights...',
+      () => this.assetRoom.loadAssets(),
+      () => {
       this.currentRoom = 'asset-room';
       this.town.root.visible = false;
       this.shopPanel.hide();
@@ -719,7 +805,8 @@ export class GameApp {
       this.explorationVelocity.set(0, 0, 0);
       this.updateSupportHeroVisibility();
       this.cameraRig.setDebugPose(this.assetRoom.camera, this.assetRoom.lookAt, 44, 'debug.asset-room');
-    });
+      },
+    );
   }
 
   private async exitSpecialRoom(): Promise<void> {
@@ -727,9 +814,10 @@ export class GameApp {
       return;
     }
 
-    await this.irisTransition(() => {
+    await this.sceneLoadTransition('Loading town', 'Returning to the debug room...', undefined, () => {
       this.currentRoom = 'town';
       this.town.root.visible = true;
+      this.battleRoom.setVisible(false);
       this.shopPanel.hide();
       this.shopInteriors.hide();
       this.assetRoom.hide();
@@ -740,6 +828,28 @@ export class GameApp {
       this.updateSupportHeroVisibility();
       this.cameraRig.setExploration();
     });
+  }
+
+  private async startBattleFromCurrentContext(): Promise<void> {
+    if (this.battle.getPhase() !== 'exploration' || this.titleScreen.isActive()) {
+      return;
+    }
+
+    await this.sceneLoadTransition('Loading battle field', 'Moving combat outside the current room...', undefined, () => {
+      this.currentRoom = 'town';
+      this.shopPanel.hide();
+      this.dialogueBox.hide();
+      this.shopInteriors.hide();
+      this.assetRoom.hide();
+      this.town.root.visible = false;
+      this.battleRoom.setVisible(true);
+      this.hero.root.position.copy(this.trigger.getPosition());
+      this.hero.root.rotation.y = Math.PI;
+      setYawForward(this.hero.root.rotation.y, this.heroForward);
+      this.explorationVelocity.set(0, 0, 0);
+      this.updateSupportHeroVisibility();
+    });
+    await this.battle.startBattle();
   }
 
   private buyItem(itemId: string): boolean {
@@ -798,14 +908,25 @@ export class GameApp {
     };
   }
 
-  private async irisTransition(apply: () => void): Promise<void> {
-    this.transitionIris.classList.remove('active');
-    void this.transitionIris.offsetWidth;
-    this.transitionIris.classList.add('active');
-    await wait(320);
-    apply();
-    await wait(480);
-    this.transitionIris.classList.remove('active');
+  private async sceneLoadTransition(
+    title: string,
+    detail: string,
+    prepare?: () => Promise<void>,
+    apply?: () => void,
+  ): Promise<void> {
+    this.sceneLoadingTitle.textContent = title;
+    this.sceneLoadingDetail.textContent = detail;
+    this.sceneLoading.hidden = false;
+    this.sceneLoading.classList.remove('active');
+    void this.sceneLoading.offsetWidth;
+    this.sceneLoading.classList.add('active');
+    await wait(140);
+    await prepare?.();
+    apply?.();
+    await wait(260);
+    this.sceneLoading.classList.remove('active');
+    await wait(180);
+    this.sceneLoading.hidden = true;
   }
 
   private applyDebugPose(
@@ -831,7 +952,7 @@ export class GameApp {
     }
 
     if (poseId.startsWith('battle.') && this.battle.getPhase() === 'exploration') {
-      void this.battle.startBattle().then(() => {
+      void this.startBattleFromCurrentContext().then(() => {
         if (!options.teleportOnly) {
           this.cameraRig.setDebugPose(pose.camera, pose.lookAt, pose.fov, pose.id);
         }
@@ -990,8 +1111,11 @@ export class GameApp {
           },
           sceneId: this.town.sceneId,
           shopId: this.shopInteriors.getActiveShopId(),
+          shopMenuActive: this.shopPanel.isActive(),
           supportHeroes: Array.from(this.activeSupportHeroIds),
           assetRoomInfo: this.assetRoom.snapshot(),
+          battleRoomInfo: this.battleRoom.snapshot(),
+          regionMapInfo: this.town.getRegionMapSnapshot(),
           townAssetInfo: {
             fallbackIds: this.town.getFallbackIds(),
             loading: this.townAssetsLoading,
@@ -1020,6 +1144,10 @@ export class GameApp {
       enterShop: (shopId) => {
         void this.enterShop(shopId);
       },
+      openShopInteraction: () => this.openShopInteraction(),
+      openShopMenu: (shopId) => {
+        this.openShopMenu(shopId);
+      },
       exitSpecialRoom: () => {
         void this.exitSpecialRoom();
       },
@@ -1027,7 +1155,7 @@ export class GameApp {
       equipWeapon: (itemId) => this.equipWeapon(itemId),
       movePlayerToBattleTrigger: () => {
         this.hero.root.position.copy(this.trigger.getPosition());
-        void this.battle.startBattle();
+        void this.startBattleFromCurrentContext();
       },
       muteAudio: () => {
         this.audio.mute();

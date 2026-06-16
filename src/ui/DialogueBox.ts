@@ -7,6 +7,7 @@ export class DialogueBox {
   private readonly nextButton: HTMLButtonElement;
   private activeNpc?: NpcDialogue;
   private currentNodeId?: string;
+  private onComplete?: () => void;
 
   constructor(root: Document) {
     const dialogueBox = root.querySelector<HTMLElement>('[data-testid="dialogue-box"]');
@@ -25,7 +26,7 @@ export class DialogueBox {
     this.nextButton.addEventListener('click', () => this.advance());
   }
 
-  show(sceneDialogue: SceneDialogue, npcId: string): boolean {
+  show(sceneDialogue: SceneDialogue, npcId: string, onComplete?: () => void): boolean {
     const npc = sceneDialogue.npcs[npcId];
     if (!npc) {
       return false;
@@ -33,9 +34,27 @@ export class DialogueBox {
 
     this.activeNpc = npc;
     this.currentNodeId = npc.start;
+    this.onComplete = onComplete;
     this.root.hidden = false;
     this.renderCurrentNode();
     return true;
+  }
+
+  showText(displayName: string, text: string, onComplete?: () => void): void {
+    this.activeNpc = {
+      displayName,
+      nodes: {
+        start: {
+          next: null,
+          text,
+        },
+      },
+      start: 'start',
+    };
+    this.currentNodeId = 'start';
+    this.onComplete = onComplete;
+    this.root.hidden = false;
+    this.renderCurrentNode();
   }
 
   advance(): void {
@@ -45,7 +64,9 @@ export class DialogueBox {
 
     const currentNode = this.activeNpc.nodes[this.currentNodeId];
     if (!currentNode?.next) {
+      const onComplete = this.onComplete;
       this.hide();
+      onComplete?.();
       return;
     }
 
@@ -57,6 +78,7 @@ export class DialogueBox {
     this.root.hidden = true;
     this.activeNpc = undefined;
     this.currentNodeId = undefined;
+    this.onComplete = undefined;
   }
 
   isActive(): boolean {

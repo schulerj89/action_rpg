@@ -34,6 +34,12 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div class="cinematic-darkener" data-testid="cinematic-darkener"></div>
   <div class="cinematic-flash" data-testid="cinematic-flash"></div>
   <div class="transition-iris" data-testid="transition-iris"></div>
+  <section class="scene-loading" data-testid="scene-loading" hidden>
+    <div>
+      <strong data-testid="scene-loading-title">Loading</strong>
+      <span data-testid="scene-loading-detail">Preparing scene...</span>
+    </div>
+  </section>
   <div class="qa-caption" data-testid="qa-caption" hidden></div>
   <div class="move-banner" data-testid="move-banner" hidden></div>
   <section class="dialogue-box" data-testid="dialogue-box" hidden>
@@ -84,12 +90,17 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </section>
 
   <section class="shop-panel" data-testid="shop-panel" hidden>
-    <header>
-      <strong data-testid="shop-title">Shop</strong>
-      <span data-testid="shop-gold">0 gold</span>
-    </header>
-    <div class="shop-list" data-testid="shop-list"></div>
-    <button type="button" class="ghost" data-testid="shop-close">Leave</button>
+    <div class="shop-shell">
+      <header>
+        <div>
+          <strong data-testid="shop-title">Shop</strong>
+          <span>Talk to the counter keeper to buy or equip.</span>
+        </div>
+        <b data-testid="shop-gold">0 gold</b>
+      </header>
+      <div class="shop-list" data-testid="shop-list"></div>
+      <button type="button" class="ghost" data-testid="shop-close">Back</button>
+    </div>
   </section>
 
   <section class="game-over-screen" data-testid="game-over-screen" hidden>
@@ -122,19 +133,24 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       </div>
     </div>
     <div class="turn-row">
-      <div class="atb-meter">
-        <span>ATB</span>
-        <div class="atb-track" aria-hidden="true">
-          <div class="atb-fill" data-testid="player-atb-fill"></div>
-        </div>
-        <b data-testid="player-atb">0</b>
+      <div class="party-atb-list" data-testid="party-atb-list"></div>
+      <div class="legacy-atb-meter" aria-hidden="true">
+        <span data-testid="player-atb">0</span>
+        <div data-testid="player-atb-fill"></div>
       </div>
       <div class="battle-log" data-testid="battle-log"></div>
     </div>
     <div class="battle-actions">
-      <button type="button" data-testid="move-slot-0">Iron Palm</button>
-      <button type="button" data-testid="move-slot-1">Dragon Heel</button>
-      <button type="button" data-testid="move-slot-2">Chi Breaker</button>
+      <header>
+        <span>Command</span>
+        <strong data-testid="battle-active-actor">Waiting</strong>
+        <small data-testid="battle-action-hint">ATB charging</small>
+      </header>
+      <div class="battle-move-grid">
+        <button type="button" data-testid="move-slot-0">Iron Palm</button>
+        <button type="button" data-testid="move-slot-1">Dragon Heel</button>
+        <button type="button" data-testid="move-slot-2">Chi Breaker</button>
+      </div>
       <button type="button" class="ghost" data-testid="reset-battle">Reset</button>
     </div>
     <div class="victory-state" data-testid="victory-state" hidden>Victory</div>

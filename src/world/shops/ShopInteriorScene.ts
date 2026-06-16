@@ -13,10 +13,26 @@ import {
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ShopId } from '../../config/economy';
 import { shopInteriorAssetDefinitions } from '../../config/shopInteriorAssets';
+import { CollisionResolver, type AabbCollider } from '../CollisionResolver';
+import { createTownNpc } from '../town/TownPrimitiveFactory';
 
 const box = new BoxGeometry(1, 1, 1);
 const cylinder = new CylinderGeometry(0.5, 0.5, 1, 16);
 const sphere = new SphereGeometry(0.5, 16, 10);
+const exitPosition = new Vector3(0, 0, 4.25);
+const vendorPosition = new Vector3(0, 0, -1.55);
+
+const shopColliders: AabbCollider[] = [
+  { id: 'shop-left-wall', minX: -6.85, maxX: -6.05, minZ: -5.35, maxZ: 5.4 },
+  { id: 'shop-right-wall', minX: 6.05, maxX: 6.85, minZ: -5.35, maxZ: 5.4 },
+  { id: 'shop-back-wall', minX: -6.55, maxX: 6.55, minZ: -5.25, maxZ: -4.42 },
+  { id: 'shop-front-left', minX: -6.55, maxX: -1.35, minZ: 5.02, maxZ: 5.42 },
+  { id: 'shop-front-right', minX: 1.35, maxX: 6.55, minZ: 5.02, maxZ: 5.42 },
+  { id: 'shop-counter', minX: -3.15, maxX: 3.15, minZ: -3.78, maxZ: -2.32 },
+  { id: 'shop-left-rack', minX: -4.95, maxX: -2.9, minZ: -3.25, maxZ: -1.18 },
+  { id: 'shop-right-rack', minX: 2.9, maxX: 4.95, minZ: -3.25, maxZ: -1.18 },
+  { id: 'shop-vendor', minX: -0.58, maxX: 0.58, minZ: -2.08, maxZ: -1.02 },
+];
 
 const materials = {
   bottleBlue: new MeshStandardMaterial({ color: '#60a5fa', emissive: '#0f2f59', roughness: 0.42 }),
@@ -39,8 +55,11 @@ export class ShopInteriorScene {
 
   private readonly weaponRoot = new Group();
   private readonly potionRoot = new Group();
+  private readonly vendorRoot = new Group();
+  private readonly vendorRoots = new Map<ShopId, Group>();
   private readonly generatedRoot = new Group();
   private readonly generatedShopRoots = new Map<ShopId, Group>();
+  private readonly collision = new CollisionResolver(shopColliders, 0.36);
   private readonly loader = new GLTFLoader();
   private activeShopId?: ShopId;
   private loadPromise?: Promise<void>;
@@ -49,9 +68,13 @@ export class ShopInteriorScene {
     this.root.name = 'shop-interiors';
     this.root.visible = false;
     this.generatedRoot.name = 'generated-shop-interiors';
-    this.root.add(createRoomShell(), this.weaponRoot, this.potionRoot, this.generatedRoot);
+    this.vendorRoot.name = 'shop-vendors';
+    this.root.add(createRoomShell(), this.weaponRoot, this.potionRoot, this.generatedRoot, this.vendorRoot);
     this.weaponRoot.add(createWeaponShopInterior());
     this.potionRoot.add(createPotionShopInterior());
+    this.vendorRoots.set('weapons', createShopkeeper('weapons'));
+    this.vendorRoots.set('potions', createShopkeeper('potions'));
+    this.vendorRoots.forEach((vendor) => this.vendorRoot.add(vendor));
     this.showShop('weapons');
     this.root.visible = false;
   }
@@ -64,6 +87,9 @@ export class ShopInteriorScene {
     this.generatedShopRoots.forEach((root, id) => {
       root.visible = id === shopId;
     });
+    this.vendorRoots.forEach((root, id) => {
+      root.visible = id === shopId;
+    });
     this.root.visible = true;
   }
 
@@ -74,6 +100,38 @@ export class ShopInteriorScene {
 
   getActiveShopId(): ShopId | undefined {
     return this.activeShopId;
+  }
+
+  resolvePlayerPosition(previous: Vector3, proposed: Vector3): Vector3 {
+    return this.collision.resolve(previous, proposed);
+  }
+
+  findNearestVendor(position: Vector3):
+    | {
+        line: string;
+        name: string;
+        shopId: ShopId;
+      }
+    | undefined {
+    if (!this.activeShopId || position.distanceTo(vendorPosition) > 2.35) {
+      return undefined;
+    }
+
+    return this.activeShopId === 'weapons'
+      ? {
+          line: 'Keep your stance loose. Browse the counter and I will fit the blade to your rhythm.',
+          name: 'Taro',
+          shopId: 'weapons',
+        }
+      : {
+          line: 'A steady breath carries a stronger spell. Take what you need before the north road.',
+          name: 'Luma',
+          shopId: 'potions',
+        };
+  }
+
+  isNearExit(position: Vector3): boolean {
+    return position.distanceTo(exitPosition) <= 1.45;
   }
 
   async loadGeneratedAssets(): Promise<void> {
@@ -99,6 +157,21 @@ export class ShopInteriorScene {
       this.showShop(this.activeShopId);
     }
   }
+}
+
+function createShopkeeper(shopId: ShopId): Group {
+  const root = createTownNpc({
+    accent: shopId === 'weapons' ? '#f59e0b' : '#a78bfa',
+    assetId: shopId === 'weapons' ? 'npc-weapon-smith' : 'npc-potion-keeper',
+    body: shopId === 'weapons' ? '#70451f' : '#ffffff',
+    dialogueId: shopId === 'weapons' ? 'weapon_smith' : 'potion_keeper',
+    id: `${shopId}-interior-shopkeeper`,
+    name: shopId === 'weapons' ? 'Taro' : 'Luma',
+    position: vendorPosition,
+    rotationY: 0,
+  });
+  root.scale.setScalar(0.92);
+  return root;
 }
 
 function createGeneratedInterior(shopId: ShopId, source: Object3D, targetLongestSide: number): Group {

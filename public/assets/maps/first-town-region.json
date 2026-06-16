@@ -1,0 +1,59 @@
+{
+  "id": "first-town-region",
+  "version": 1,
+  "activeZones": ["town-core", "north-outskirts"],
+  "terrainPatches": [
+    {
+      "id": "north-road-dirt",
+      "zoneId": "north-outskirts",
+      "kind": "dirt",
+      "x": 0,
+      "z": -25.5,
+      "width": 7.2,
+      "depth": 22
+    },
+    {
+      "id": "north-field-west",
+      "zoneId": "north-outskirts",
+      "kind": "grass",
+      "x": -11.5,
+      "z": -27.5,
+      "width": 19,
+      "depth": 24
+    },
+    {
+      "id": "north-field-east",
+      "zoneId": "north-outskirts",
+      "kind": "grass",
+      "x": 11.5,
+      "z": -27.5,
+      "width": 19,
+      "depth": 24
+    },
+    {
+      "id": "north-battle-field",
+      "zoneId": "battle-north-field",
+      "kind": "battle-grass",
+      "x": 0,
+      "z": -28,
+      "width": 26,
+      "depth": 18
+    },
+    {
+      "id": "north-field-ridge",
+      "zoneId": "north-outskirts",
+      "kind": "ridge",
+      "x": 0,
+      "z": -38.7,
+      "width": 30,
+      "depth": 1.2
+    }
+  ],
+  "battleScenes": [
+    {
+      "id": "north-field",
+      "terrainZone": "battle-north-field",
+      "theme": "outside-town"
+    }
+  ]
+}

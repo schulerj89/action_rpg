@@ -242,11 +242,26 @@ export interface RpgTestApi {
     };
     sceneId: string;
     shopId?: string;
+    shopMenuActive: boolean;
     supportHeroes: string[];
     assetRoomInfo: Array<{
       id: string;
       status: 'failed' | 'loaded' | 'loading';
     }>;
+    battleRoomInfo: {
+      id: string;
+      visible: boolean;
+    };
+    regionMapInfo?: {
+      activeZones: string[];
+      battleScenes: Array<{
+        id: string;
+        terrainZone: string;
+        theme: string;
+      }>;
+      id: string;
+      version: number;
+    };
     townAssetInfo: {
       failed: string[];
       fallbackIds: string[];
@@ -290,6 +305,8 @@ export interface RpgTestApi {
   interactWithNpc: (npcId: string) => boolean;
   enterAssetRoom: () => void;
   enterShop: (shopId: 'potions' | 'weapons') => void;
+  openShopInteraction: () => boolean;
+  openShopMenu: (shopId: 'potions' | 'weapons') => void;
   exitSpecialRoom: () => void;
   buyItem: (itemId: string) => boolean;
   equipWeapon: (itemId: string) => boolean;

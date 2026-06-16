@@ -151,16 +151,33 @@ export class CameraRig {
   }
 
   async frameEnemyAttack(enemyPosition: Vector3, targetPosition: Vector3, turnIndex = 0): Promise<void> {
+    await this.frameEnemyAttackWindup(enemyPosition, targetPosition, turnIndex);
+  }
+
+  async frameEnemyAttackWindup(enemyPosition: Vector3, targetPosition: Vector3, turnIndex = 0): Promise<void> {
     this.mode = 'scripted';
-    this.activePreset = `battle.enemy.${turnIndex % 2}`;
+    this.activePreset = `battle.enemy.windup.${turnIndex % 2}`;
     const forward = targetPosition.clone().sub(enemyPosition).setY(0).normalize();
     const right = new Vector3(forward.z, 0, -forward.x).normalize();
     const side = turnIndex % 2 === 0 ? -1 : 1;
-    const targetCamera = enemyPosition.clone().lerp(targetPosition, 0.55).addScaledVector(right, side * 2.45);
-    targetCamera.y += 1.86;
-    const targetLook = enemyPosition.clone().lerp(targetPosition, 0.54);
+    const targetCamera = enemyPosition.clone().addScaledVector(forward, -3.8).addScaledVector(right, side * 2.85);
+    targetCamera.y += 2.35;
+    const targetLook = enemyPosition.clone().lerp(targetPosition, 0.35);
+    targetLook.y += 1.05;
+    await this.moveCamera(targetCamera, targetLook, 340);
+  }
+
+  async frameEnemyAttackImpact(enemyPosition: Vector3, targetPosition: Vector3, turnIndex = 0): Promise<void> {
+    this.mode = 'scripted';
+    this.activePreset = `battle.enemy.impact.${turnIndex % 2}`;
+    const forward = targetPosition.clone().sub(enemyPosition).setY(0).normalize();
+    const right = new Vector3(forward.z, 0, -forward.x).normalize();
+    const side = turnIndex % 2 === 0 ? 1 : -1;
+    const targetCamera = targetPosition.clone().addScaledVector(forward, -2.35).addScaledVector(right, side * 2.1);
+    targetCamera.y += 1.92;
+    const targetLook = enemyPosition.clone().lerp(targetPosition, 0.68);
     targetLook.y += 0.95;
-    await this.moveCamera(targetCamera, targetLook, 260);
+    await this.moveCamera(targetCamera, targetLook, 240);
   }
 
   async frameThunderOverhead(casterPosition: Vector3, enemyPosition: Vector3): Promise<void> {

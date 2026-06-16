@@ -79,6 +79,7 @@ button.ghost {
 .move-banner,
   .opening-caption,
   .qa-caption,
+  .scene-loading,
   .shop-panel,
   .title-screen,
   .transition-iris,
@@ -91,6 +92,7 @@ button.ghost {
 .dialogue-box,
 .loading,
 .move-banner,
+.scene-loading,
 .qa-caption {
   z-index: 5;
 }
@@ -109,6 +111,10 @@ button.ghost {
 
 .shop-panel {
   z-index: 7;
+}
+
+.scene-loading {
+  z-index: 12;
 }
 
 .opening-caption {
@@ -138,6 +144,12 @@ button.ghost {
     transform 220ms ease;
 }
 
+@media (min-width: 1180px) {
+  .battle-ui {
+    right: 396px;
+  }
+}
+
 .battle-ui.cinematic {
   opacity: 0.36;
   pointer-events: none;
@@ -150,6 +162,7 @@ button.ghost {
 .game-menu[hidden],
   .opening-caption[hidden],
   .qa-caption[hidden],
+  .scene-loading[hidden],
   .shop-panel[hidden],
   .dialogue-box[hidden],
   .loading[hidden],
@@ -607,19 +620,53 @@ button.ghost {
   min-width: 0;
 }
 
-.atb-meter {
+.party-atb-list {
   display: grid;
-  grid-template-columns: auto minmax(110px, 1fr) 36px;
-  align-items: center;
-  gap: 12px;
-  padding: 9px 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  gap: 8px;
 }
 
-.atb-meter b {
-  color: #50e3c2;
-  text-align: right;
+.party-atb-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(226, 232, 240, 0.14);
+  border-left: 3px solid rgba(80, 227, 194, 0.56);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.075);
+}
+
+.party-atb-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.party-atb-card strong {
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.party-atb-card span {
+  color: #d8dee9;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.party-atb-card.active-turn {
+  border-left-color: #fef08a;
+  background: rgba(80, 227, 194, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(254, 240, 138, 0.18);
+}
+
+.party-atb-card.inactive {
+  opacity: 0.45;
+}
+
+.party-ready {
+  color: #fef08a;
+  text-transform: uppercase;
 }
 
 .atb-track {
@@ -649,11 +696,56 @@ button.ghost {
 }
 
 .battle-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-rows: auto auto auto;
   gap: 10px;
-  align-content: center;
-  justify-content: flex-end;
+  align-content: stretch;
+  min-width: 220px;
+  padding: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.14);
+  border-radius: 8px;
+  background: rgba(4, 9, 14, 0.34);
+}
+
+.battle-actions header {
+  display: grid;
+  gap: 3px;
+}
+
+.battle-actions header span {
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.battle-actions header strong {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.battle-actions header small {
+  color: #dbeafe;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.battle-move-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.battle-move-grid button,
+.battle-actions > button {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  text-align: left;
+}
+
+.legacy-atb-meter {
+  display: none;
 }
 
 .victory-state {
@@ -807,36 +899,60 @@ body.qa-capture-mode .battle-ui {
 }
 
 .shop-panel {
-  right: 24px;
-  bottom: 24px;
-  width: min(520px, calc(100vw - 48px));
+  inset: 0;
   display: grid;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid rgba(219, 234, 254, 0.4);
-  border-radius: 8px;
+  place-items: center;
+  padding: 28px;
   color: #f8fbff;
   background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 64, 175, 0.72)),
-    rgba(15, 23, 42, 0.92);
-  box-shadow: 0 22px 64px rgba(2, 6, 23, 0.46);
-  backdrop-filter: blur(10px);
+    radial-gradient(circle at 50% 28%, rgba(125, 211, 252, 0.24), transparent 36%),
+    linear-gradient(135deg, rgba(8, 47, 111, 0.72), rgba(30, 64, 175, 0.66) 48%, rgba(148, 163, 184, 0.42));
+  backdrop-filter: blur(7px);
 }
 
-.shop-panel header {
+.shop-shell {
+  width: min(980px, calc(100vw - 56px));
+  max-height: min(680px, calc(100vh - 56px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid rgba(219, 234, 254, 0.4);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(14, 38, 85, 0.84), rgba(7, 18, 42, 0.9)),
+    rgba(15, 23, 42, 0.72);
+  box-shadow: 0 22px 64px rgba(2, 6, 23, 0.46);
+}
+
+.shop-panel header,
+.shop-shell header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
 }
 
-.shop-panel header strong {
+.shop-shell header div {
+  display: grid;
+  gap: 4px;
+}
+
+.shop-panel header strong,
+.shop-shell header strong {
   color: #ffffff;
   font-size: 22px;
   font-weight: 950;
 }
 
-.shop-panel header span {
+.shop-shell header span {
+  color: #bfdbfe;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.shop-panel header b,
+.shop-shell header b {
   color: #fef08a;
   font-size: 15px;
   font-weight: 900;
@@ -845,7 +961,7 @@ body.qa-capture-mode .battle-ui {
 .shop-list {
   display: grid;
   gap: 10px;
-  max-height: min(390px, calc(100vh - 230px));
+  max-height: min(500px, calc(100vh - 230px));
   overflow: auto;
 }
 
@@ -886,7 +1002,7 @@ body.qa-capture-mode .battle-ui {
 }
 
 .shop-actions button,
-.shop-panel > button {
+.shop-shell > button {
   min-width: 82px;
   min-height: 34px;
   font-size: 13px;
@@ -903,6 +1019,48 @@ body.qa-capture-mode .battle-ui {
 
 .transition-iris.active {
   animation: iris-transition 760ms ease-in-out both;
+}
+
+.scene-loading {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  color: #f8fbff;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(96, 165, 250, 0.22), rgba(2, 6, 23, 0.92) 58%),
+    rgba(2, 6, 23, 0.96);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.scene-loading.active {
+  opacity: 1;
+}
+
+.scene-loading div {
+  display: grid;
+  gap: 8px;
+  min-width: min(360px, calc(100vw - 56px));
+  padding: 18px 20px;
+  border: 1px solid rgba(191, 219, 254, 0.34);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.76);
+  text-align: center;
+  box-shadow: 0 22px 80px rgba(2, 6, 23, 0.52);
+}
+
+.scene-loading strong {
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 950;
+}
+
+.scene-loading span {
+  color: #bfdbfe;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .game-menu-shell {
@@ -1378,6 +1536,8 @@ body.qa-capture-mode .battle-ui {
     left: 10px;
     right: 10px;
     bottom: 10px;
+    max-height: calc(100vh - 20px);
+    overflow: auto;
   }
 
   .game-menu {
@@ -1413,12 +1573,22 @@ body.qa-capture-mode .battle-ui {
     right: 10px;
   }
 
-  .battle-actions {
-    justify-content: stretch;
+  .combatants {
+    grid-template-columns: 1fr;
   }
 
-  .battle-actions button {
-    flex: 1 1 120px;
+  .battle-actions {
+    grid-template-rows: auto auto auto;
+  }
+
+  .shop-panel {
+    padding: 12px;
+  }
+
+  .shop-shell {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    padding: 14px;
   }
 
   .dialogue-box {

@@ -16,6 +16,16 @@ import {
 import type { TownAssetPlacement, TownBuildingLayout, TownNpcLayout } from './firstTownLayout';
 import type { AabbCollider } from '../CollisionResolver';
 
+export interface TerrainPatchLayout {
+  depth: number;
+  id: string;
+  kind: 'battle-grass' | 'dirt' | 'grass' | 'ridge';
+  rotationY?: number;
+  width: number;
+  x: number;
+  z: number;
+}
+
 const materials = {
   bottle: new MeshStandardMaterial({ color: '#a78bfa', roughness: 0.55 }),
   grass: new MeshStandardMaterial({ color: '#3f7f49', roughness: 0.92 }),
@@ -24,6 +34,9 @@ const materials = {
   stone: new MeshStandardMaterial({ color: '#777b80', roughness: 0.82 }),
   wall: new MeshStandardMaterial({ color: '#d7b88d', roughness: 0.78 }),
   wood: new MeshStandardMaterial({ color: '#7a4a2b', roughness: 0.8 }),
+  wildGrass: new MeshStandardMaterial({ color: '#315f38', roughness: 0.94 }),
+  wildPath: new MeshStandardMaterial({ color: '#7b6d57', roughness: 0.9 }),
+  wildRidge: new MeshStandardMaterial({ color: '#53616a', roughness: 0.84 }),
 };
 
 const box = new BoxGeometry(1, 1, 1);
@@ -71,6 +84,37 @@ export function createGrassField(): InstancedMesh {
   grass.instanceMatrix.needsUpdate = true;
   grass.frustumCulled = false;
   return grass;
+}
+
+export function createTerrainPatch(layout: TerrainPatchLayout): Group {
+  const root = new Group();
+  root.name = layout.id;
+  root.position.set(layout.x, 0, layout.z);
+  root.rotation.y = layout.rotationY ?? 0;
+
+  const material =
+    layout.kind === 'dirt'
+      ? materials.wildPath
+      : layout.kind === 'ridge'
+        ? materials.wildRidge
+        : layout.kind === 'battle-grass'
+          ? materials.wildGrass
+          : materials.ground;
+  const mesh = new Mesh(new PlaneGeometry(layout.width, layout.depth), material);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = layout.kind === 'ridge' ? 0.035 : 0.008;
+  mesh.receiveShadow = true;
+  root.add(mesh);
+
+  if (layout.kind === 'ridge') {
+    const ridge = new Mesh(box, materials.wildRidge);
+    ridge.scale.set(layout.width, 0.42, Math.min(layout.depth, 0.7));
+    ridge.position.y = 0.22;
+    ridge.receiveShadow = true;
+    root.add(ridge);
+  }
+
+  return root;
 }
 
 export function createTownBuilding(layout: TownBuildingLayout): Group {

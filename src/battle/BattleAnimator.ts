@@ -44,11 +44,13 @@ export class BattleAnimator {
     heroPosition: Vector3,
     enemyAnchor: Vector3,
     onImpact: () => void,
+    beforeImpact?: () => Promise<void>,
   ): Promise<void> {
     const approachDirection = safeDirection(heroPosition.clone().sub(enemy.root.position).setY(0), new Vector3(0, 0, 1));
     const strikePosition = heroPosition.clone().addScaledVector(approachDirection, -1.95);
     strikePosition.y = enemy.root.position.y;
     await tweenVector3(enemy.root.position, strikePosition, this.tunables.enemyActionDurationMs * 0.45);
+    await beforeImpact?.();
     onImpact();
     await tweenVector3(enemy.root.position, enemyAnchor, this.tunables.enemyActionDurationMs * 0.55);
   }

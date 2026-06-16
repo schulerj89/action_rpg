@@ -764,14 +764,21 @@ export class BattleDirector {
     this.hud.showMoveBanner(this.enemyCombatant.name, 'Pulse Ram', 'enemy');
 
     this.actionCount += 1;
-    await this.cameraRig.frameEnemyAttack(this.enemy.root.position, target.character.root.position, this.actionCount);
-    await this.animator.enemyAttack(this.enemy, target.character.root.position, this.enemyAnchor, () => {
-      const result = this.resolver.resolveEnemyAttack(this.enemyCombatant, target.combatant);
-      this.audio.playEnemyImpact();
-      target.character.play('hit', { loopOnce: true, fadeSeconds: 0.08, timeScale: 1.1 });
-      this.logLine = `Counter dealt ${result.damage} to ${target.name}.`;
-      window.dispatchEvent(new CustomEvent('rpg:action-resolved', { detail: result }));
-    });
+    await this.cameraRig.frameEnemyAttackWindup(this.enemy.root.position, target.character.root.position, this.actionCount);
+    await wait(260);
+    await this.animator.enemyAttack(
+      this.enemy,
+      target.character.root.position,
+      this.enemyAnchor,
+      () => {
+        const result = this.resolver.resolveEnemyAttack(this.enemyCombatant, target.combatant);
+        this.audio.playEnemyImpact();
+        target.character.play('hit', { loopOnce: true, fadeSeconds: 0.08, timeScale: 1.1 });
+        this.logLine = `Counter dealt ${result.damage} to ${target.name}.`;
+        window.dispatchEvent(new CustomEvent('rpg:action-resolved', { detail: result }));
+      },
+      () => this.cameraRig.frameEnemyAttackImpact(this.enemy.root.position, target.character.root.position, this.actionCount),
+    );
 
     if (this.player.hp <= 0) {
       await this.enterGameOver();
