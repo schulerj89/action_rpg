@@ -5,6 +5,8 @@ import type { AabbCollider } from '../CollisionResolver';
 export const firstTownSceneId = 'first-town';
 export const firstTownSpawn = new Vector3(0, 0, 7.0);
 export const firstTownBattleTrigger = new Vector3(0, 0, -27.5);
+export const firstTownNorthRouteStart = -18.4;
+export const firstTownNextTownName = 'Stonewake';
 
 export interface TownBuildingLayout {
   accent: string;
@@ -27,6 +29,11 @@ export interface TownNpcLayout {
   name: string;
   position: Vector3;
   rotationY?: number;
+}
+
+export interface TownNpcPose {
+  position: Vector3;
+  rotationY: number;
 }
 
 export interface TownAssetPlacement {
@@ -211,6 +218,82 @@ export const firstTownGroundAssets: TownAssetPlacement[] = [
     rotationY: Math.PI / 2,
     targetLongestSide: 13.5,
     yOffset: 0.02,
+  },
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-west-edge-fill',
+    position: new Vector3(-14.4, 0, -7.8),
+    rotationY: Math.PI / 2,
+    targetLongestSide: 12.4,
+    yOffset: 0.019,
+  },
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-east-edge-fill',
+    position: new Vector3(14.4, 0, -7.8),
+    rotationY: Math.PI / 2,
+    targetLongestSide: 12.4,
+    yOffset: 0.019,
+  },
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-southwest-fill',
+    position: new Vector3(-12.0, 0, 9.0),
+    rotationY: Math.PI / 2,
+    targetLongestSide: 11.8,
+    yOffset: 0.019,
+  },
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-southeast-fill',
+    position: new Vector3(12.0, 0, 9.0),
+    rotationY: Math.PI / 2,
+    targetLongestSide: 11.8,
+    yOffset: 0.019,
+  },
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-north-gate-fill',
+    position: new Vector3(0, 0, -18.6),
+    targetLongestSide: 18.8,
+    yOffset: 0.018,
+  },
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-north-outskirts-a',
+    position: new Vector3(0, 0, -28.2),
+    targetLongestSide: 20.4,
+    yOffset: 0.018,
+  },
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-north-outskirts-b',
+    position: new Vector3(0, 0, -39.5),
+    targetLongestSide: 21.0,
+    yOffset: 0.018,
+  },
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-stonewake-trail',
+    position: new Vector3(0, 0, -51.0),
+    targetLongestSide: 20.8,
+    yOffset: 0.018,
   },
 ];
 
@@ -482,6 +565,24 @@ export const firstTownDebugPoses: TownDebugPose[] = [
     yaw: Math.PI,
     camera: new Vector3(0, 3.05, -19.2),
     lookAt: new Vector3(0, 1.2, -28.4),
+    fov: 50,
+  },
+  {
+    id: 'route.north.field_enemy',
+    label: 'north route field enemy',
+    player: new Vector3(0, 0, -25.45),
+    yaw: Math.PI,
+    camera: new Vector3(3.7, 3.15, -20.0),
+    lookAt: new Vector3(0, 0.95, -27.5),
+    fov: 47,
+  },
+  {
+    id: 'route.north.stonewake_trail',
+    label: 'Stonewake trail preview',
+    player: new Vector3(0, 0, -42.0),
+    yaw: Math.PI,
+    camera: new Vector3(7.8, 5.15, -32.2),
+    lookAt: new Vector3(0, 0.95, -47.0),
     fov: 50,
   },
   {

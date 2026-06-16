@@ -32,6 +32,8 @@ const materials = {
   ground: new MeshStandardMaterial({ color: '#4a7c4d', roughness: 0.9 }),
   path: new MeshStandardMaterial({ color: '#8b8476', roughness: 0.86 }),
   stone: new MeshStandardMaterial({ color: '#777b80', roughness: 0.82 }),
+  threat: new MeshStandardMaterial({ color: '#7f1d1d', emissive: '#4c0519', roughness: 0.66 }),
+  threatAccent: new MeshStandardMaterial({ color: '#f97316', emissive: '#7c2d12', roughness: 0.5 }),
   wall: new MeshStandardMaterial({ color: '#d7b88d', roughness: 0.78 }),
   wood: new MeshStandardMaterial({ color: '#7a4a2b', roughness: 0.8 }),
   wildGrass: new MeshStandardMaterial({ color: '#315f38', roughness: 0.94 }),
@@ -46,16 +48,18 @@ const sphere = new SphereGeometry(0.5, 16, 10);
 
 export function createTownGround(): Group {
   const root = new Group();
-  const ground = new Mesh(new PlaneGeometry(80, 80), materials.ground);
+  const ground = new Mesh(new PlaneGeometry(92, 132), materials.ground);
   ground.rotation.x = -Math.PI / 2;
+  ground.position.z = -16;
   ground.receiveShadow = true;
   root.add(ground);
 
-  root.add(createPath(0, -6.8, 5.2, 46));
+  root.add(createPath(0, -18.8, 5.2, 72));
   root.add(createPath(0, -4.2, 24, 4.2));
   root.add(createPath(-9.2, 1.8, 4.2, 14.4));
   root.add(createPath(9.2, 1.8, 4.2, 14.4));
   root.add(createPath(0, 7.8, 18, 4.0));
+  root.add(createPath(0, -46, 7.2, 28));
   return root;
 }
 
@@ -84,6 +88,67 @@ export function createGrassField(): InstancedMesh {
   grass.instanceMatrix.needsUpdate = true;
   grass.frustumCulled = false;
   return grass;
+}
+
+export function createFieldEnemyMarker(position: Vector3): Group {
+  const root = new Group();
+  root.name = 'north-route-field-enemy';
+  root.position.copy(position);
+
+  const body = new Mesh(cone, materials.threat);
+  body.scale.set(0.7, 1.25, 0.7);
+  body.position.y = 0.78;
+  body.rotation.y = Math.PI / 4;
+  body.castShadow = true;
+
+  const eye = new Mesh(new SphereGeometry(0.09, 12, 8), materials.threatAccent);
+  eye.position.set(0, 1.22, 0.46);
+
+  const aura = new Mesh(
+    new TorusGeometry(0.68, 0.035, 8, 36),
+    new MeshStandardMaterial({
+      color: '#fb923c',
+      emissive: '#7f1d1d',
+      transparent: true,
+      opacity: 0.72,
+      roughness: 0.42,
+    }),
+  );
+  aura.rotation.x = -Math.PI / 2;
+  aura.position.y = 0.05;
+
+  const spikeLeft = new Mesh(cone, materials.threatAccent);
+  spikeLeft.scale.set(0.18, 0.36, 0.18);
+  spikeLeft.position.set(-0.34, 1.42, 0.08);
+  spikeLeft.rotation.z = 0.34;
+  const spikeRight = spikeLeft.clone();
+  spikeRight.position.x = 0.34;
+  spikeRight.rotation.z = -0.34;
+
+  root.add(body, eye, aura, spikeLeft, spikeRight);
+  return root;
+}
+
+export function createTrailDestinationMarker(): Group {
+  const root = new Group();
+  root.name = 'stonewake-route-marker';
+  root.position.set(0, 0, -55.4);
+
+  const post = new Mesh(box, materials.wood);
+  post.scale.set(0.16, 1.35, 0.16);
+  post.position.y = 0.68;
+
+  const plank = new Mesh(box, new MeshStandardMaterial({ color: '#d7b88d', roughness: 0.76 }));
+  plank.scale.set(1.95, 0.42, 0.12);
+  plank.position.set(0, 1.34, 0);
+
+  const arrow = new Mesh(cone, materials.wood);
+  arrow.scale.set(0.3, 0.42, 0.3);
+  arrow.rotation.z = -Math.PI / 2;
+  arrow.position.set(1.16, 1.34, 0);
+
+  root.add(post, plank, arrow);
+  return root;
 }
 
 export function createTerrainPatch(layout: TerrainPatchLayout): Group {

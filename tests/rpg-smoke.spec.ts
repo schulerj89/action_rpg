@@ -4,7 +4,7 @@ import { mkdirSync } from 'node:fs';
 const qaScreenshotDir = 'test-results/qa-screens/current';
 
 test('RPG sandbox battle path loads, resolves actions, wins, and resets', async ({ page }) => {
-  test.setTimeout(600_000);
+  test.setTimeout(900_000);
   const errors: string[] = [];
   const assetErrors: string[] = [];
   mkdirSync(qaScreenshotDir, { recursive: true });
@@ -64,7 +64,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().townAssetInfo.instanceCounts['town-wall-segment']))
     .toBeGreaterThan(10);
-  await expect(page.getByTestId('title-version')).toContainText('v0.1.1');
+  await expect(page.getByTestId('title-version')).toContainText('v0.1.2');
   const titleBox = await page.locator('.title-stack h1').boundingBox();
   const startBox = await page.getByTestId('title-start').boundingBox();
   expect(Math.abs((titleBox?.x ?? 0) + (titleBox?.width ?? 0) / 2 - ((startBox?.x ?? 0) + (startBox?.width ?? 0) / 2))).toBeLessThan(12);

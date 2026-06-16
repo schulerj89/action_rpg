@@ -25,6 +25,7 @@ The final player feeling should be: this town mattered, the party earned its tru
 | 0-10 min | Title, start, town spawn | Move, camera, interact | Establish `Aetherwake` as immediate action inside a lived-in town. |
 | 10-30 min | Well and shop loop | Talk to 3 NPCs, visit weapon and potion shops | Show the town depends on shared routines now disrupted by ember sightings. |
 | 30-50 min | First north-wall scare | Training-ring trigger starts an Ember Prowler battle | Teach ATB basics and make the threat visible without leaving the hub. |
+| 50-60 min | Stonewake road callout | Pip thanks Ryuji and points north after the first prowler | Turn the first battle into a next-route objective without forcing immediate travel. |
 | 50-80 min | Repair preparation | Shop errands unlock basic weapon/potion upgrades | Convert shops from menus into story support systems. |
 | 80-110 min | Mira optional recruit | Debug/optional party toggle or side beat near the well | Let Mira add tactical flexibility and banter without blocking the solo path. |
 | 110-140 min | Second prowler push | Two-wave encounter or stronger prowler variant | Prove the player can survive pressure and preview the boss arena. |
@@ -45,6 +46,7 @@ The final player feeling should be: this town mattered, the party earned its tru
 - Apothecary: Calm under pressure, tracks ember burns and panic. Gameplay job: potion/cure tutorial. Story job: make recovery part of the town's identity.
 - Gate Watcher: Posted near the north wall. Gameplay job: battle trigger and warning state. Story job: externalize the rising threat.
 - Well Keeper: Knows the ward-stone history but avoids saying too much early. Gameplay job: points the player between shops and well. Story job: links the town's daily life to the final boss motive.
+- Pip: Starts as the rescued runner, then becomes the first road guide. After the visible Ember Prowler is defeated, Pip should tell Ryuji that the creature was scouting and that the ember smoke leads toward Stonewake.
 - Mira: Optional/debug recruit. Gameplay job: optional ally for party tests, support actions, and banter coverage. Story job: show another person choosing to help, but do not require her for any critical objective.
 
 ## Battle Progression
@@ -79,6 +81,7 @@ Both enemies should remain readable from the battle camera at small scale. Avoid
 
 - Add dialogue in scene data only after the runtime owner is ready; keep this doc as the source of intent for now.
 - Use stable debug names for smoke coverage: `story-well`, `story-weapon-shop`, `story-potion-shop`, `story-north-wall`, `battle-ember-prowler`, and `battle-shellback-guardian`.
+- For the Stonewake route slice, use one visible fixed encounter near the north gate. If a distance-based wild encounter meter is active, cap it at one extra fight and keep the first several seconds after victory free of hidden battles.
 - Keep first-town primitive fallbacks valid. Story beats should not require Meshy props to load before the player can progress.
 - Treat Mira as a testable optional branch: solo path, Mira path, and debug-recruited path should all reach the same ending.
 - The first playable milestone is complete when a tester can summarize the town's problem, use both shops, win two prowler encounters, optionally recruit Mira, defeat the Guardian, and see the town recover.

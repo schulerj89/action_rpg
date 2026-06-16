@@ -9,20 +9,25 @@ import {
   firstTownDebugPoses,
   firstTownDetailAssets,
   firstTownGroundAssets,
+  firstTownNextTownName,
   firstTownNpcs,
+  firstTownNorthRouteStart,
   firstTownPreloadAssetIds,
   firstTownSceneId,
   firstTownSpawn,
   firstTownWallSegments,
   type TownDebugPose,
   type TownAssetPlacement,
+  type TownNpcPose,
 } from './firstTownLayout';
 import { TownAssetSystem, type TownAssetSystemSnapshot } from './TownAssetSystem';
 import {
   createBattleTriggerPad,
   createCollisionOverlay,
+  createFieldEnemyMarker,
   createGrassField,
   createTerrainPatch,
+  createTrailDestinationMarker,
   createTownBuilding,
   createTownGround,
   createTownNpc,
@@ -44,6 +49,7 @@ export class FirstTownScene {
   private readonly assetSystem = new TownAssetSystem(firstTownAssetDefinitions);
   private readonly collision = new CollisionResolver(firstTownColliders);
   private readonly fallbackRoots = new Map<string, Group>();
+  private readonly fieldEnemyRoot: Group;
   private readonly interactions: InteractionTrigger[] = [];
   private readonly npcBaseRotations = new Map<string, number>();
   private readonly npcRoots = new Map<string, Group>();
@@ -53,8 +59,10 @@ export class FirstTownScene {
     this.root.name = 'first-town';
     this.combatHiddenRoot.name = 'first-town-combat-hidden';
     this.streamedTerrainRoot.name = 'first-town-streamed-terrain';
+    this.fieldEnemyRoot = createFieldEnemyMarker(this.battleTriggerPosition);
     this.root.add(createTownGround(), createGrassField(), this.combatHiddenRoot, this.collisionOverlayRoot);
     this.combatHiddenRoot.add(this.streamedTerrainRoot);
+    this.combatHiddenRoot.add(this.fieldEnemyRoot, createTrailDestinationMarker());
     this.addFallback('town-well', createTownWell(), this.combatHiddenRoot);
 
     firstTownBuildings.forEach((building) => {
@@ -139,6 +147,10 @@ export class FirstTownScene {
     return firstTownNpcs.map((npc) => npc.dialogueId);
   }
 
+  getNextTownName(): string {
+    return firstTownNextTownName;
+  }
+
   getDebugPoses(): TownDebugPose[] {
     return firstTownDebugPoses.map((pose) => ({
       ...pose,
@@ -185,6 +197,59 @@ export class FirstTownScene {
 
   getFallbackIds(): string[] {
     return [...this.fallbackRoots.entries()].filter(([, root]) => root.visible).map(([id]) => id);
+  }
+
+  getRouteSnapshot(): { fieldEnemyVisible: boolean; northRouteStartZ: number; nextTownName: string } {
+    return {
+      fieldEnemyVisible: this.fieldEnemyRoot.visible,
+      nextTownName: firstTownNextTownName,
+      northRouteStartZ: firstTownNorthRouteStart,
+    };
+  }
+
+  setFieldEnemyVisible(visible: boolean): void {
+    this.fieldEnemyRoot.visible = visible;
+    this.battleTriggerPad.visible = visible;
+  }
+
+  isFieldEnemyVisible(): boolean {
+    return this.fieldEnemyRoot.visible;
+  }
+
+  setNpcPose(dialogueId: string, pose: TownNpcPose): boolean {
+    const npcRoot = this.npcRoots.get(dialogueId);
+    if (!npcRoot) {
+      return false;
+    }
+
+    npcRoot.position.copy(pose.position);
+    npcRoot.rotation.y = pose.rotationY;
+    this.npcBaseRotations.set(dialogueId, pose.rotationY);
+    return true;
+  }
+
+  restoreNpcPose(dialogueId: string): boolean {
+    const layout = firstTownNpcs.find((npc) => npc.dialogueId === dialogueId);
+    if (!layout) {
+      return false;
+    }
+
+    return this.setNpcPose(dialogueId, {
+      position: layout.position,
+      rotationY: layout.rotationY ?? 0,
+    });
+  }
+
+  getNpcPose(dialogueId: string): TownNpcPose | undefined {
+    const npcRoot = this.npcRoots.get(dialogueId);
+    if (!npcRoot) {
+      return undefined;
+    }
+
+    return {
+      position: npcRoot.position.clone(),
+      rotationY: npcRoot.rotation.y,
+    };
   }
 
   setCombatMode(enabled: boolean): void {

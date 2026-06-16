@@ -262,6 +262,20 @@ export interface RpgTestApi {
       id: string;
       version: number;
     };
+    routeInfo: {
+      fieldEnemyVisible: boolean;
+      fixedFieldEnemyDefeated: boolean;
+      nextTownName: string;
+      northRouteStartZ: number;
+      postBattleCinematicPlayed: boolean;
+    };
+    outsideEncounterInfo: {
+      active: boolean;
+      cap: number;
+      count: number;
+      meters: number;
+      nextMeters: number;
+    };
     townAssetInfo: {
       failed: string[];
       fallbackIds: string[];
@@ -324,6 +338,8 @@ export interface RpgTestApi {
   setHeroYaw: (yaw: number) => void;
   setQaCaptureMode: (enabled: boolean, sceneOnly?: boolean) => void;
   setSupportHeroActive: (id: string, active: boolean) => void;
+  resetRouteEncounter: () => void;
+  playPostBattleCinematic: () => void;
   playOpeningCinematic: () => void;
   toggleMenu: () => void;
   testGameOver: () => void;

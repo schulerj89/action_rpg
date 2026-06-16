@@ -42,6 +42,7 @@ import { AssetInspectionRoom } from './world/debug/AssetInspectionRoom';
 import type { InteractionTrigger } from './world/InteractionTrigger';
 import { ShopInteriorScene } from './world/shops/ShopInteriorScene';
 import { FirstTownScene } from './world/town/FirstTownScene';
+import { firstTownNextTownName, firstTownNorthRouteStart } from './world/town/firstTownLayout';
 import { WeatherSystem } from './world/WeatherSystem';
 
 const playerMoveSpeed = 4.2;
@@ -51,6 +52,10 @@ const explorationPivotTurnSpeed = 3.9;
 const explorationReverseTurnSpeed = 5.6;
 const movementStopThreshold = 0.03;
 const leaderBattleAnchor = new Vector3(0, 0, -24.6);
+const wildEncounterDistanceMeters = 62;
+const wildEncounterCap = 1;
+
+type BattleStartSource = 'debug' | 'fixed-field' | 'wild';
 
 export class GameApp {
   private readonly canvas: HTMLCanvasElement;
@@ -77,6 +82,9 @@ export class GameApp {
   private readonly supportTarget = new Vector3();
   private readonly supportRight = new Vector3();
   private readonly targetVelocity = new Vector3();
+  private readonly cinematicNpcStart = new Vector3();
+  private readonly cinematicNpcEnd = new Vector3();
+  private readonly cinematicNpcPose = new Vector3();
   private readonly titleScreen: TitleScreen;
   private readonly shopInteriors = new ShopInteriorScene();
   private readonly shopPanel: ShopPanel;
@@ -97,14 +105,22 @@ export class GameApp {
   private readonly inventory = new Map<string, number>(Object.entries(startingInventory));
   private reverseTurnTargetYaw?: number;
   private currentRoom: 'asset-room' | 'shop' | 'town' = 'town';
+  private activeBattleSource: BattleStartSource = 'debug';
   private cinematicActive = false;
   private enemyAssetsLoading = false;
+  private fixedFieldEnemyDefeated = false;
   private openingCinematicPlayed = false;
+  private pendingPostBattleCinematic = false;
+  private postBattleCinematicPlayed = false;
   private qaCaptureMode = false;
   private sceneCaptureMode = false;
+  private sceneTransitionActive = false;
   private townAssetsLoading = false;
   private townCombatMode = false;
+  private outsideEncounterDistance = 0;
+  private outsideEncounterCount = 0;
   private gold = startingGold;
+  private explorationStepDistance = 0;
   private lastFrameTime = performance.now();
 
   private constructor(
@@ -209,7 +225,7 @@ export class GameApp {
         void this.enterShop(shopId);
       },
       onStartBattle: () => {
-        void this.startBattleFromCurrentContext();
+        void this.startBattleFromCurrentContext('debug');
       },
       onStatChange: (heroId, key, value) => {
         this.battle.updateHeroStat(heroId, key, value);
@@ -262,6 +278,20 @@ export class GameApp {
       if (!this.titleScreen.isActive()) {
         this.audio.playTown();
       }
+      this.town.setFieldEnemyVisible(!this.fixedFieldEnemyDefeated);
+      if (this.pendingPostBattleCinematic) {
+        this.pendingPostBattleCinematic = false;
+        void this.playPostBattleCinematic();
+      }
+    });
+    window.addEventListener('rpg:victory', () => {
+      if (this.activeBattleSource !== 'fixed-field') {
+        return;
+      }
+
+      this.fixedFieldEnemyDefeated = true;
+      this.town.setFieldEnemyVisible(false);
+      this.pendingPostBattleCinematic = !this.postBattleCinematicPlayed;
     });
     this.audio.playTitle();
   }
@@ -356,7 +386,7 @@ export class GameApp {
       return;
     }
 
-    if (this.cinematicActive || this.gameMenu.isActive() || this.shopPanel.isActive()) {
+    if (this.sceneTransitionActive || this.cinematicActive || this.gameMenu.isActive() || this.shopPanel.isActive()) {
       this.explorationVelocity.set(0, 0, 0);
       this.hero.play('explorationIdle');
       if (this.cameraRig.getMode() === 'free') {
@@ -392,11 +422,15 @@ export class GameApp {
       this.updateRoomMovement(deltaSeconds, (previous, proposed) => this.town.resolvePlayerPosition(previous, proposed), true);
       this.updateSupportHeroes(deltaSeconds, true);
 
-      if (this.trigger.check(this.hero.root.position)) {
-        void this.startBattleFromCurrentContext();
+      if (!this.fixedFieldEnemyDefeated && this.trigger.check(this.hero.root.position)) {
+        void this.startBattleFromCurrentContext('fixed-field');
+        return;
       }
+
+      this.updateOutsideEncounters();
     } else {
       this.explorationVelocity.set(0, 0, 0);
+      this.explorationStepDistance = 0;
       this.updateSupportHeroes(deltaSeconds, false);
     }
   }
@@ -408,6 +442,7 @@ export class GameApp {
   ): void {
     if (this.cameraRig.getMode() === 'free') {
       this.explorationVelocity.set(0, 0, 0);
+      this.explorationStepDistance = 0;
       this.hero.play('explorationIdle');
       this.cameraRig.updateFreeCamera(this.input.getFreeCameraAxes(), deltaSeconds);
       return;
@@ -444,6 +479,7 @@ export class GameApp {
     this.previousHeroPosition.copy(this.hero.root.position);
     this.proposedHeroPosition.copy(this.hero.root.position).addScaledVector(this.explorationVelocity, deltaSeconds);
     this.hero.root.position.copy(resolvePosition(this.previousHeroPosition, this.proposedHeroPosition));
+    this.explorationStepDistance = this.previousHeroPosition.distanceTo(this.hero.root.position);
 
     if (this.explorationVelocity.lengthSq() > movementStopThreshold * movementStopThreshold) {
       this.hero.play('run');
@@ -459,6 +495,30 @@ export class GameApp {
     if (followCamera) {
       this.cameraRig.updateExploration(this.hero.root.position, this.heroForward, deltaSeconds);
     }
+  }
+
+  private updateOutsideEncounters(): void {
+    if (!this.isInNorthRoute()) {
+      this.outsideEncounterDistance = Math.max(0, this.outsideEncounterDistance - this.explorationStepDistance * 0.35);
+      return;
+    }
+
+    if (!this.fixedFieldEnemyDefeated || !this.postBattleCinematicPlayed || this.outsideEncounterCount >= wildEncounterCap) {
+      return;
+    }
+
+    this.outsideEncounterDistance += this.explorationStepDistance;
+    if (this.outsideEncounterDistance < wildEncounterDistanceMeters) {
+      return;
+    }
+
+    this.outsideEncounterDistance = 0;
+    this.outsideEncounterCount += 1;
+    void this.startBattleFromCurrentContext('wild');
+  }
+
+  private isInNorthRoute(): boolean {
+    return this.currentRoom === 'town' && this.hero.root.position.z < firstTownNorthRouteStart && Math.abs(this.hero.root.position.x) < 15.5;
   }
 
   private updateTownCombatMode(): void {
@@ -830,9 +890,14 @@ export class GameApp {
     });
   }
 
-  private async startBattleFromCurrentContext(): Promise<void> {
+  private async startBattleFromCurrentContext(source: BattleStartSource = 'debug'): Promise<void> {
     if (this.battle.getPhase() !== 'exploration' || this.titleScreen.isActive()) {
       return;
+    }
+
+    this.activeBattleSource = source;
+    if (source === 'fixed-field') {
+      this.town.setFieldEnemyVisible(false);
     }
 
     await this.sceneLoadTransition('Loading battle field', 'Moving combat outside the current room...', undefined, () => {
@@ -914,19 +979,24 @@ export class GameApp {
     prepare?: () => Promise<void>,
     apply?: () => void,
   ): Promise<void> {
+    this.sceneTransitionActive = true;
     this.sceneLoadingTitle.textContent = title;
     this.sceneLoadingDetail.textContent = detail;
     this.sceneLoading.hidden = false;
     this.sceneLoading.classList.remove('active');
     void this.sceneLoading.offsetWidth;
-    this.sceneLoading.classList.add('active');
-    await wait(140);
-    await prepare?.();
-    apply?.();
-    await wait(260);
-    this.sceneLoading.classList.remove('active');
-    await wait(180);
-    this.sceneLoading.hidden = true;
+    try {
+      this.sceneLoading.classList.add('active');
+      await wait(140);
+      await prepare?.();
+      apply?.();
+      await wait(260);
+      this.sceneLoading.classList.remove('active');
+      await wait(180);
+    } finally {
+      this.sceneLoading.hidden = true;
+      this.sceneTransitionActive = false;
+    }
   }
 
   private applyDebugPose(
@@ -952,7 +1022,7 @@ export class GameApp {
     }
 
     if (poseId.startsWith('battle.') && this.battle.getPhase() === 'exploration') {
-      void this.startBattleFromCurrentContext().then(() => {
+      void this.startBattleFromCurrentContext('debug').then(() => {
         if (!options.teleportOnly) {
           this.cameraRig.setDebugPose(pose.camera, pose.lookAt, pose.fov, pose.id);
         }
@@ -1037,6 +1107,96 @@ export class GameApp {
     this.cinematicActive = false;
   }
 
+  private async playPostBattleCinematic(): Promise<void> {
+    if (this.cinematicActive) {
+      return;
+    }
+
+    this.postBattleCinematicPlayed = true;
+    this.cinematicActive = true;
+    this.currentRoom = 'town';
+    this.town.root.visible = true;
+    this.town.setCombatMode(false);
+    this.town.setFieldEnemyVisible(false);
+    this.battleRoom.setVisible(false);
+    this.shopInteriors.hide();
+    this.assetRoom.hide();
+    this.shopPanel.hide();
+    this.gameMenu.hide();
+    this.dialogueBox.hide();
+    this.weather.setMode('clear');
+
+    this.hero.root.position.set(0, 0, -20.6);
+    this.hero.root.rotation.y = Math.PI;
+    setYawForward(this.hero.root.rotation.y, this.heroForward);
+    this.explorationVelocity.set(0, 0, 0);
+    this.updateSupportHeroes(0.016, true);
+
+    this.cinematicNpcStart.set(3.2, 0, -17.85);
+    this.cinematicNpcEnd.set(0.9, 0, -20.15);
+    this.town.setNpcPose('runner', { position: this.cinematicNpcStart, rotationY: -0.75 });
+
+    this.openingCaption.hidden = false;
+    this.openingCaptionText.textContent = 'Pip breaks through the north gate as the road falls quiet.';
+    this.cameraRig.setDebugPose(new Vector3(4.55, 2.35, -15.7), new Vector3(0.2, 1.02, -20.4), 43, 'cinematic.postbattle.runner');
+    this.hero.play('explorationIdle');
+    await Promise.all([this.animateNpcRun('runner', this.cinematicNpcStart, this.cinematicNpcEnd, 1300), wait(900)]);
+
+    this.openingCaptionText.textContent = `The ember smoke twists north toward ${firstTownNextTownName}.`;
+    await this.waitForOpeningCaption(1750);
+    this.openingCaption.hidden = true;
+
+    this.dialogueBox.showText(
+      'Pip',
+      `You got it. The prowler was only scouting. Follow the ember smoke north and warn ${firstTownNextTownName} before nightfall.`,
+      () => {
+        this.town.restoreNpcPose('runner');
+        this.cameraRig.setExploration();
+        this.cinematicActive = false;
+      },
+    );
+  }
+
+  private async animateNpcRun(dialogueId: string, start: Vector3, end: Vector3, durationMs: number): Promise<void> {
+    const direction = end.clone().sub(start).setY(0);
+    const yaw = Math.atan2(direction.x, direction.z);
+    const startedAt = performance.now();
+
+    await new Promise<void>((resolve) => {
+      const step = (): void => {
+        const elapsed = performance.now() - startedAt;
+        const t = Math.min(elapsed / durationMs, 1);
+        const eased = t * t * (3 - 2 * t);
+        this.cinematicNpcPose.copy(start).lerp(end, eased);
+        this.town.setNpcPose(dialogueId, {
+          position: this.cinematicNpcPose,
+          rotationY: yaw + Math.sin(t * Math.PI * 8) * 0.06,
+        });
+
+        if (t < 1) {
+          window.requestAnimationFrame(step);
+          return;
+        }
+
+        this.town.setNpcPose(dialogueId, { position: end, rotationY: yaw });
+        resolve();
+      };
+
+      step();
+    });
+  }
+
+  private resetRouteEncounter(): void {
+    this.fixedFieldEnemyDefeated = false;
+    this.pendingPostBattleCinematic = false;
+    this.postBattleCinematicPlayed = false;
+    this.outsideEncounterDistance = 0;
+    this.outsideEncounterCount = 0;
+    this.town.setFieldEnemyVisible(true);
+    this.trigger.reset();
+    this.town.restoreNpcPose('runner');
+  }
+
   private async waitForOpeningCaption(minimumMs: number): Promise<void> {
     const text = this.openingCaptionText.textContent ?? '';
     const readingMs = Math.max(minimumMs, text.length * 58);
@@ -1116,6 +1276,18 @@ export class GameApp {
           assetRoomInfo: this.assetRoom.snapshot(),
           battleRoomInfo: this.battleRoom.snapshot(),
           regionMapInfo: this.town.getRegionMapSnapshot(),
+          routeInfo: {
+            ...this.town.getRouteSnapshot(),
+            fixedFieldEnemyDefeated: this.fixedFieldEnemyDefeated,
+            postBattleCinematicPlayed: this.postBattleCinematicPlayed,
+          },
+          outsideEncounterInfo: {
+            active: this.isInNorthRoute(),
+            cap: wildEncounterCap,
+            count: this.outsideEncounterCount,
+            meters: this.outsideEncounterDistance,
+            nextMeters: wildEncounterDistanceMeters,
+          },
           townAssetInfo: {
             fallbackIds: this.town.getFallbackIds(),
             loading: this.townAssetsLoading,
@@ -1155,7 +1327,7 @@ export class GameApp {
       equipWeapon: (itemId) => this.equipWeapon(itemId),
       movePlayerToBattleTrigger: () => {
         this.hero.root.position.copy(this.trigger.getPosition());
-        void this.startBattleFromCurrentContext();
+        void this.startBattleFromCurrentContext('debug');
       },
       muteAudio: () => {
         this.audio.mute();
@@ -1199,6 +1371,12 @@ export class GameApp {
       },
       setQaCaptureMode: (enabled, sceneOnly = false) => {
         this.setQaCaptureMode(enabled, sceneOnly);
+      },
+      resetRouteEncounter: () => {
+        this.resetRouteEncounter();
+      },
+      playPostBattleCinematic: () => {
+        void this.playPostBattleCinematic();
       },
       testGameOver: () => {
         void this.battle.testGameOver();

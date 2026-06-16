@@ -1,6 +1,6 @@
 {
   "id": "first-town-region",
-  "version": 1,
+  "version": 2,
   "activeZones": ["town-core", "north-outskirts"],
   "terrainPatches": [
     {
@@ -46,6 +46,42 @@
       "x": 0,
       "z": -38.7,
       "width": 30,
+      "depth": 1.2
+    },
+    {
+      "id": "stonewake-road-dirt",
+      "zoneId": "north-outskirts",
+      "kind": "dirt",
+      "x": 0,
+      "z": -48.5,
+      "width": 6.6,
+      "depth": 22
+    },
+    {
+      "id": "stonewake-field-west",
+      "zoneId": "north-outskirts",
+      "kind": "grass",
+      "x": -12.2,
+      "z": -49.5,
+      "width": 20,
+      "depth": 25
+    },
+    {
+      "id": "stonewake-field-east",
+      "zoneId": "north-outskirts",
+      "kind": "grass",
+      "x": 12.2,
+      "z": -49.5,
+      "width": 20,
+      "depth": 25
+    },
+    {
+      "id": "stonewake-trail-ridge",
+      "zoneId": "north-outskirts",
+      "kind": "ridge",
+      "x": 0,
+      "z": -59.8,
+      "width": 34,
       "depth": 1.2
     }
   ],

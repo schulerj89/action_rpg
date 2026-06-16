@@ -32,7 +32,7 @@ test('scripted first town playthrough hides debug and reaches shops, NPCs, and b
     window.__rpgTest?.muteAudio();
   });
   await expect(page.getByTestId('debug-panel')).toBeHidden();
-  await expect(page.getByTestId('title-version')).toContainText('v0.1.1');
+  await expect(page.getByTestId('title-version')).toContainText('v0.1.2');
   await waitForTownAssets(page);
 
   await capture(page, 'playthrough-01-title-screen.png');
@@ -85,8 +85,11 @@ test('scripted first town playthrough hides debug and reaches shops, NPCs, and b
   await page.getByTestId('shop-close').click();
   await exitShopToTown(page);
 
+  await page.evaluate(() => window.__rpgTest?.setDebugPose('route.north.field_enemy'));
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().routeInfo.fieldEnemyVisible)).toBe(true);
+  await capture(page, 'playthrough-12-north-route-field-enemy.png');
+  await page.evaluate(() => window.__rpgTest?.setFreeCamera(false));
   await placeHero(page, 0, -25.6);
-  await capture(page, 'playthrough-12-outside-town-battle-trigger.png');
   await page.keyboard.down('ArrowUp');
   await page.waitForTimeout(760);
   await page.keyboard.up('ArrowUp');
@@ -110,6 +113,17 @@ test('scripted first town playthrough hides debug and reaches shops, NPCs, and b
   await expect(page.getByTestId('victory-results')).toBeVisible({ timeout: 8_000 });
   await expect(page.getByTestId('victory-level-title')).toHaveText('Level Up');
   await capture(page, 'playthrough-15-victory-results.png');
+
+  await expect(page.getByTestId('dialogue-speaker')).toHaveText('Pip', { timeout: 35_000 });
+  await expect(page.getByTestId('dialogue-text')).toContainText('Stonewake');
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().routeInfo.fixedFieldEnemyDefeated)).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().routeInfo.fieldEnemyVisible)).toBe(false);
+  await capture(page, 'playthrough-16-post-battle-thanks.png');
+  await page.getByTestId('dialogue-next').click();
+  await expect(page.getByTestId('dialogue-box')).toBeHidden();
+  await page.evaluate(() => window.__rpgTest?.setDebugPose('route.north.stonewake_trail'));
+  await page.waitForTimeout(350);
+  await capture(page, 'playthrough-17-stonewake-trail-preview.png');
 
   expect(errors).toEqual([]);
   expect(assetErrors).toEqual([]);
