@@ -3,11 +3,13 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { TownAssetDefinition, TownAssetId } from '../../config/townAssets';
 
 interface TownAssetInstanceOptions {
+  flattenY?: number;
   name: string;
   position: Vector3;
   rotationY?: number;
   targetHeight?: number;
   targetLongestSide?: number;
+  yOffset?: number;
 }
 
 export interface TownAssetLoadRecord {
@@ -113,8 +115,11 @@ function normalizeInstance(instance: Object3D, options: TownAssetInstanceOptions
   const scaleFromHeight = options.targetHeight ? options.targetHeight / Math.max(size.y, 0.001) : undefined;
   const scaleFromLongestSide = options.targetLongestSide ? options.targetLongestSide / currentLongestSide : undefined;
   instance.scale.setScalar(scaleFromHeight ?? scaleFromLongestSide ?? 1);
+  if (options.flattenY !== undefined) {
+    instance.scale.y *= options.flattenY;
+  }
   instance.updateMatrixWorld(true);
 
   const scaledBounds = new Box3().setFromObject(instance);
-  instance.position.y = -scaledBounds.min.y;
+  instance.position.y = -scaledBounds.min.y + (options.yOffset ?? 0);
 }

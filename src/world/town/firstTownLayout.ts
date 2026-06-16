@@ -31,12 +31,14 @@ export interface TownNpcLayout {
 
 export interface TownAssetPlacement {
   assetId: TownAssetId;
+  flattenY?: number;
   hiddenInCombat: boolean;
   id: string;
   position: Vector3;
   rotationY?: number;
   targetHeight?: number;
   targetLongestSide?: number;
+  yOffset?: number;
 }
 
 export interface TownDebugPose {
@@ -162,7 +164,55 @@ export const firstTownNpcs: TownNpcLayout[] = [
 
 export const firstTownPreloadAssetIds: TownAssetId[] = ['town-ground-tile'];
 
-export const firstTownGroundAssets: TownAssetPlacement[] = [];
+export const firstTownGroundAssets: TownAssetPlacement[] = [
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-plaza',
+    position: new Vector3(0, 0, -1.1),
+    targetLongestSide: 17.5,
+    yOffset: 0.016,
+  },
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-south-lane',
+    position: new Vector3(0, 0, 8.1),
+    targetLongestSide: 18.2,
+    yOffset: 0.018,
+  },
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-north-lane',
+    position: new Vector3(0, 0, -11.0),
+    targetLongestSide: 18.2,
+    yOffset: 0.018,
+  },
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-west-shop-lane',
+    position: new Vector3(-8.9, 0, 1.4),
+    rotationY: Math.PI / 2,
+    targetLongestSide: 13.5,
+    yOffset: 0.02,
+  },
+  {
+    assetId: 'town-ground-tile',
+    flattenY: 0.035,
+    hiddenInCombat: true,
+    id: 'ground-east-shop-lane',
+    position: new Vector3(8.9, 0, 1.4),
+    rotationY: Math.PI / 2,
+    targetLongestSide: 13.5,
+    yOffset: 0.02,
+  },
+];
 
 export const firstTownDetailAssets: TownAssetPlacement[] = [
   {
@@ -196,12 +246,12 @@ export const firstTownWallSegments: TownAssetPlacement[] = [
     position: new Vector3(x, 0, -16.9),
     targetLongestSide: 5.2,
   })),
-  ...[-12, -6, 0, 6, 12].map((x) => ({
+  ...[-15, -9, -3, 3, 9, 15].map((x) => ({
     assetId: 'town-wall-segment' as const,
     hiddenInCombat: true,
     id: `south-wall-${x}`,
     position: new Vector3(x, 0, 14.0),
-    targetLongestSide: 5.2,
+    targetLongestSide: 6.25,
   })),
   ...[-12, -7, -2, 3, 8, 13].flatMap((z) => [
     {
@@ -228,7 +278,7 @@ export const firstTownColliders: AabbCollider[] = [
   { id: 'well', minX: -0.9, maxX: 0.9, minZ: -2.25, maxZ: -0.6 },
   { id: 'north-wall-left', minX: -18.2, maxX: -4.35, minZ: -17.9, maxZ: -15.8 },
   { id: 'north-wall-right', minX: 4.35, maxX: 18.2, minZ: -17.9, maxZ: -15.8 },
-  { id: 'south-wall', minX: -18.2, maxX: 18.2, minZ: 13.1, maxZ: 15.0 },
+  { id: 'south-wall', minX: -18.2, maxX: 18.2, minZ: 12.75, maxZ: 15.08 },
   { id: 'west-wall', minX: -18.1, maxX: -15.9, minZ: -17.9, maxZ: 15.0 },
   { id: 'east-wall', minX: 15.9, maxX: 18.1, minZ: -17.9, maxZ: 15.0 },
 ];
@@ -325,6 +375,46 @@ const wallPoses: TownDebugPose[] = [
     lookAt: new Vector3(16.5, 0.9, 14.0),
     collisionOverlay: true,
     fov: 48,
+  },
+  {
+    id: 'wall.south.x_minus_2_8',
+    label: 'south wall x -2.8 edge',
+    player: new Vector3(-2.8, 0, 12.32),
+    yaw: Math.PI * 0.08,
+    camera: new Vector3(-2.8, 3.35, 8.5),
+    lookAt: new Vector3(-2.8, 0.86, 13.62),
+    collisionOverlay: true,
+    fov: 44,
+  },
+  {
+    id: 'wall.south.center',
+    label: 'south wall center seam check',
+    player: new Vector3(0.25, 0, 12.32),
+    yaw: 0,
+    camera: new Vector3(0.25, 3.35, 8.35),
+    lookAt: new Vector3(0.25, 0.86, 13.78),
+    collisionOverlay: true,
+    fov: 44,
+  },
+  {
+    id: 'wall.south.left_run',
+    label: 'south wall west run',
+    player: new Vector3(-10.9, 0, 12.32),
+    yaw: 0.18,
+    camera: new Vector3(-10.9, 3.35, 8.4),
+    lookAt: new Vector3(-10.9, 0.86, 13.78),
+    collisionOverlay: true,
+    fov: 44,
+  },
+  {
+    id: 'wall.south.right_run',
+    label: 'south wall east run',
+    player: new Vector3(10.9, 0, 12.32),
+    yaw: -0.18,
+    camera: new Vector3(10.9, 3.35, 8.4),
+    lookAt: new Vector3(10.9, 0.86, 13.78),
+    collisionOverlay: true,
+    fov: 44,
   },
 ];
 

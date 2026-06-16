@@ -97,4 +97,4 @@ export const supportHeroDefinitions: SupportHeroDefinition[] = [
   },
 ];
 
-export const defaultActiveSupportHeroIds: SupportHeroId[] = ['mira'];
+export const defaultActiveSupportHeroIds: SupportHeroId[] = [];

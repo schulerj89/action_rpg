@@ -4,7 +4,7 @@ import { mkdirSync } from 'node:fs';
 const qaScreenshotDir = 'test-results/qa-screens/current';
 
 test('RPG sandbox battle path loads, resolves actions, wins, and resets', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(360_000);
   const errors: string[] = [];
   const assetErrors: string[] = [];
   mkdirSync(qaScreenshotDir, { recursive: true });
@@ -85,7 +85,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('title-screen')).toBeHidden();
   await expect(page.getByTestId('opening-caption')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('opening-caption')).toBeHidden({ timeout: 8_000 });
+  await expect(page.getByTestId('opening-caption')).toBeHidden({ timeout: 14_000 });
   await page.evaluate(() => window.__rpgTest?.muteAudio());
 
   const canvasBox = await page.getByTestId('game-canvas').boundingBox();
@@ -116,6 +116,16 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('game-menu')).toBeHidden();
 
   await page.evaluate(() => window.__rpgTest?.setFreeCamera(true));
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.mode)).toBe('free');
+  await page.evaluate(() => window.__rpgTest?.setFreeCamera(false));
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.mode)).toBe('exploration');
+  await page.mouse.move((canvasBox?.x ?? 0) + (canvasBox?.width ?? 0) / 2, (canvasBox?.y ?? 0) + (canvasBox?.height ?? 0) / 2);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(
+    (canvasBox?.x ?? 0) + (canvasBox?.width ?? 0) / 2 + 84,
+    (canvasBox?.y ?? 0) + (canvasBox?.height ?? 0) / 2 - 16,
+  );
+  await page.mouse.up({ button: 'right' });
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.mode)).toBe('free');
   await page.evaluate(() => window.__rpgTest?.setFreeCamera(false));
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.mode)).toBe('exploration');
@@ -161,10 +171,14 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   const afterTurnAroundForward = await page.evaluate(() => window.__rpgTest?.getState().position);
   expect(afterTurnAroundForward?.x).toBeLessThan((afterTurnAround?.x ?? 0) - 0.2);
 
-  await expect(page.getByTestId('debug-party-mira')).toBeChecked();
+  await expect(page.getByTestId('debug-party-mira')).not.toBeChecked();
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().supportHeroes)).toEqual([]);
+  await page.getByTestId('debug-party-mira').check();
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().supportHeroes)).toEqual(['mira']);
   await page.getByTestId('debug-party-mira').uncheck();
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().supportHeroes)).toEqual([]);
   await page.getByTestId('debug-party-mira').check();
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().supportHeroes)).toEqual(['mira']);
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().supportHeroes)).toEqual(['mira']);
 
   await page.getByTestId('debug-hero-select').selectOption('mira');
@@ -269,7 +283,8 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await waitForActionRecovery(page);
   await page.evaluate(() => window.__rpgTest?.setEnemyHp(320));
 
-  await page.evaluate(() => window.__rpgTest?.forceReady());
+  await page.evaluate(() => window.__rpgTest?.forceHeroReady('ryuji'));
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().activeActorId)).toBe('ryuji');
   await expect(page.getByTestId('move-slot-0')).toBeEnabled();
   await expect(page.getByTestId('player-atb-fill')).toHaveAttribute('style', /--atb-progress: 100%/);
 
@@ -282,9 +297,10 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await waitForActionRecovery(page);
 
   await page.evaluate(() => {
-    window.__rpgTest?.equipMove(2, 'healingChi');
-    window.__rpgTest?.forceReady();
+    window.__rpgTest?.equipHeroMove('ryuji', 2, 'healingChi');
+    window.__rpgTest?.forceHeroReady('ryuji');
   });
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().activeActorId)).toBe('ryuji');
   await expect(page.getByTestId('move-slot-2')).toHaveText('Cure');
   await expect(page.getByTestId('move-slot-2')).toBeEnabled();
 
@@ -295,7 +311,8 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect.poll(() => playerHp(page)).toBeGreaterThan(heroHpBeforeHeal);
   await waitForActionRecovery(page);
 
-  await page.evaluate(() => window.__rpgTest?.forceReady());
+  await page.evaluate(() => window.__rpgTest?.forceHeroReady('ryuji'));
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().activeActorId)).toBe('ryuji');
   await expect(page.getByTestId('move-slot-1')).toBeEnabled();
 
   const afterPunchHp = await enemyHp(page);
@@ -305,9 +322,10 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await waitForActionRecovery(page);
 
   await page.evaluate(() => {
-    window.__rpgTest?.equipMove(2, 'chiBreaker');
-    window.__rpgTest?.forceReady();
+    window.__rpgTest?.equipHeroMove('ryuji', 2, 'chiBreaker');
+    window.__rpgTest?.forceHeroReady('ryuji');
   });
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().activeActorId)).toBe('ryuji');
   await expect(page.getByTestId('move-slot-2')).toHaveText('Chi Breaker');
   await expect(page.getByTestId('move-slot-2')).toBeEnabled();
 
@@ -320,8 +338,9 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
   await page.evaluate(() => {
     window.__rpgTest?.setEnemyHp(1);
-    window.__rpgTest?.forceReady();
+    window.__rpgTest?.forceHeroReady('ryuji');
   });
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().activeActorId)).toBe('ryuji');
   await expect(page.getByTestId('move-slot-0')).toBeEnabled({ timeout: 8_000 });
   await page.getByTestId('move-slot-0').click();
 

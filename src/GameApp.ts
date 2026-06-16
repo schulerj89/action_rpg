@@ -103,7 +103,7 @@ export class GameApp {
     this.hud = new BattleHud(document);
     this.gameMenu = new GameMenu(document);
     this.dialogueBox = new DialogueBox(document);
-    this.cameraRig = new CameraRig(this.world.camera, this.canvas);
+    this.cameraRig = new CameraRig(this.world.camera, this.canvas, () => this.hero.root.position.clone());
     this.weather = new WeatherSystem(this.world.scene);
     this.enemy = new EnemyShape();
     this.supportHeroes = supportHeroes;
@@ -666,7 +666,7 @@ export class GameApp {
 
   private toggleFreeCamera(): void {
     const enabled = this.cameraRig.getMode() !== 'free';
-    this.cameraRig.setFreeCamera(enabled);
+    this.cameraRig.setFreeCamera(enabled, enabled ? this.hero.root.position : undefined);
     if (!enabled) {
       this.town.setCollisionOverlay(false);
     }
@@ -695,25 +695,31 @@ export class GameApp {
     this.openingCaptionText.textContent = 'Ryuji reaches the square as Pip stumbles near the well.';
     this.cameraRig.setDebugPose(new Vector3(3.8, 2.15, 7.35), new Vector3(2.6, 1.05, 3.8), 43, 'opening.helping-pip');
     this.hero.play('run', { fadeSeconds: 0.08 });
-    await wait(900);
+    await this.waitForOpeningCaption(2450);
 
     this.hero.play('chi', { loopOnce: true, fadeSeconds: 0.08, timeScale: 0.85 });
     this.vfx.setAura(true, 'healing');
     this.vfx.healingBloomAt(new Vector3(3.15, 0, 3.55));
     this.audio.playHealing();
     this.openingCaptionText.textContent = 'A quiet pulse steadies him before the storm can take hold.';
-    await wait(1450);
+    await this.waitForOpeningCaption(2850);
 
     this.vfx.setAura(false);
     this.hero.play('explorationIdle');
     this.openingCaptionText.textContent = 'The north gate glows. The first battle waits beyond town.';
     this.cameraRig.setDebugPose(new Vector3(0, 4.2, -8.4), new Vector3(0, 1.2, -16.9), 46, 'opening.north-gate');
-    await wait(1350);
+    await this.waitForOpeningCaption(2600);
 
     this.openingCaption.hidden = true;
     this.weather.setMode('clear');
     this.cameraRig.setExploration();
     this.cinematicActive = false;
+  }
+
+  private async waitForOpeningCaption(minimumMs: number): Promise<void> {
+    const text = this.openingCaptionText.textContent ?? '';
+    const readingMs = Math.max(minimumMs, text.length * 58);
+    await wait(readingMs);
   }
 
   private installTestApi(): void {
@@ -738,6 +744,7 @@ export class GameApp {
         const cameraInfo = this.cameraRig.snapshot();
         const weatherInfo = this.weather.snapshot();
         return {
+          activeActorId: snapshot.activeActorId,
           audioStatus: this.audio.getStatus(),
           battleState: this.battle.getPhase(),
           bossMode: this.battle.isBossMode(),
@@ -840,7 +847,7 @@ export class GameApp {
       },
       setDebugPose: (id, options) => this.applyDebugPose(id, options),
       setFreeCamera: (enabled) => {
-        this.cameraRig.setFreeCamera(enabled);
+        this.cameraRig.setFreeCamera(enabled, enabled ? this.hero.root.position : undefined);
       },
       setHeroYaw: (yaw) => {
         this.hero.root.rotation.y = yaw;

@@ -149,7 +149,7 @@ export class GameMenu {
       <div class="menu-list">
         <article class="menu-row"><strong>Move</strong><span>W/Up moves forward. A/D or arrows pivot. S/Down turns around.</span></article>
         <article class="menu-row"><strong>Interact</strong><span>E, Space, or Enter talks to nearby people.</span></article>
-        <article class="menu-row"><strong>Camera</strong><span>Right Shift toggles free camera. Hold right mouse to look, WASD/QE to fly.</span></article>
+        <article class="menu-row"><strong>Camera</strong><span>Right click enters free camera and looks around. Right Shift toggles it; WASD/QE fly and Left Shift speeds up.</span></article>
         <article class="menu-row"><strong>Debug</strong><span>Use the debug panel to jump to tests, start battles, and replay scenes.</span></article>
       </div>
     `;

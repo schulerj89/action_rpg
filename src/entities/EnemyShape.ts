@@ -78,8 +78,8 @@ export class EnemyShape {
   }
 
   update(deltaSeconds: number): void {
-    this.root.rotation.y += deltaSeconds * (this.bossMode ? 0.95 : 0.7);
-    this.root.position.y = this.home.y + Math.sin(performance.now() * 0.002) * 0.12;
+    this.root.rotation.y = this.bossMode ? 0.08 : 0;
+    this.root.position.y = this.home.y + Math.sin(performance.now() * 0.0012) * 0.035;
 
     if (this.hitTimer > 0) {
       this.hitTimer -= deltaSeconds;

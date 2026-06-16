@@ -23,9 +23,11 @@ export class CameraRig {
   private freeYaw = Math.PI;
   private freePitch = -0.22;
   private rightMouseDown = false;
+  private readonly freeCameraFocus?: () => Vector3;
 
-  constructor(camera: PerspectiveCamera, canvas?: HTMLCanvasElement) {
+  constructor(camera: PerspectiveCamera, canvas?: HTMLCanvasElement, freeCameraFocus?: () => Vector3) {
     this.camera = camera;
+    this.freeCameraFocus = freeCameraFocus;
     if (canvas) {
       this.installPointerControls(canvas);
     }
@@ -222,8 +224,18 @@ export class CameraRig {
     this.camera.lookAt(this.lookTarget);
   }
 
-  setFreeCamera(enabled: boolean): void {
+  setFreeCamera(enabled: boolean, focus?: Vector3): void {
     if (enabled) {
+      if (focus) {
+        const currentDirection = this.camera.position.clone().sub(focus).setY(0);
+        if (currentDirection.lengthSq() < 0.5) {
+          currentDirection.set(0, 0, 1);
+        }
+        currentDirection.normalize();
+        this.camera.position.copy(focus).addScaledVector(currentDirection, 6.2);
+        this.camera.position.y = Math.max(this.camera.position.y, focus.y + 2.8);
+        this.camera.lookAt(focus.clone().setY(focus.y + 1.2));
+      }
       const direction = new Vector3();
       this.camera.getWorldDirection(direction);
       this.freeYaw = Math.atan2(direction.x, direction.z);
@@ -273,13 +285,16 @@ export class CameraRig {
 
   private installPointerControls(canvas: HTMLCanvasElement): void {
     canvas.addEventListener('contextmenu', (event) => {
-      if (this.mode === 'free') {
-        event.preventDefault();
-      }
+      event.preventDefault();
     });
     canvas.addEventListener('pointerdown', (event) => {
-      if (this.mode !== 'free' || event.button !== 2) {
+      if (event.button !== 2) {
         return;
+      }
+
+      event.preventDefault();
+      if (this.mode !== 'free') {
+        this.setFreeCamera(true, this.freeCameraFocus?.());
       }
       this.rightMouseDown = true;
       canvas.setPointerCapture(event.pointerId);

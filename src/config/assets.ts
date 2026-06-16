@@ -62,9 +62,9 @@ export const titleMusicAsset = {
 };
 
 export const townMusicAsset = {
-  title: 'A New Town (RPG Theme)',
-  url: '/assets/audio/cynicmusic-a-new-town.mp3',
-  sourceUrl: 'https://opengameart.org/content/a-new-town-rpg-theme',
+  title: 'Town Theme RPG',
+  url: '/assets/audio/cynicmusic-town-theme-rpg.mp3',
+  sourceUrl: 'https://opengameart.org/content/town-theme-rpg',
   author: 'cynicmusic',
   license: 'CC0',
 };

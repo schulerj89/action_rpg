@@ -24,6 +24,14 @@ Author: cynicmusic
 
 License: CC0
 
+`cynicmusic-town-theme-rpg.mp3`
+
+Source: https://opengameart.org/content/town-theme-rpg
+
+Author: cynicmusic
+
+License: CC0
+
 `cynicmusic-victory-theme-for-rpg.mp3`
 
 Source: https://opengameart.org/content/victory-theme-for-rpg

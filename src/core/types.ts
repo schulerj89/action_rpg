@@ -186,6 +186,7 @@ export interface RpgTestApi {
   forceHeroReady: (heroId: string) => void;
   getState: () => {
     audioStatus: string;
+    activeActorId?: string;
     battleState: BattlePhase;
     bossMode: boolean;
     enemyHp: number;

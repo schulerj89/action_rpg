@@ -200,9 +200,11 @@ export class FirstTownScene {
       const model = this.assetSystem.createInstance(placement.assetId, {
         name: `${placement.id}-meshy`,
         position: placement.position,
+        flattenY: placement.flattenY,
         rotationY: placement.rotationY,
         targetHeight: placement.targetHeight,
         targetLongestSide: placement.targetLongestSide,
+        yOffset: placement.yOffset,
       });
       if (!model) {
         return;
