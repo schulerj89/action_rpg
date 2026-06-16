@@ -11,6 +11,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <div class="victory-kicker">Victory</div>
     <h1 data-testid="victory-level-title">Level Up</h1>
     <div class="victory-level" data-testid="victory-level">Level 1 -> 2</div>
+    <div class="victory-stat-gains" data-testid="victory-stat-gains"></div>
     <div class="xp-progress" data-testid="victory-xp-progress">
       <div class="xp-progress-fill" data-testid="victory-xp-fill"></div>
     </div>
@@ -20,10 +21,20 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 
   <section class="battle-ui" data-testid="battle-ui" hidden>
     <div class="combatants">
-      <div class="combatant">
-        <strong>Ryuji Vale</strong>
-        <span><span data-testid="player-hp">0</span>/<span data-testid="player-hp-max">0</span> HP</span>
-        <span><span data-testid="player-chi">0</span> Chi</span>
+      <div class="party-roster">
+        <div class="combatant party-leader">
+          <strong>Ryuji Vale</strong>
+          <span><span data-testid="player-hp">0</span>/<span data-testid="player-hp-max">0</span> HP</span>
+          <span><span data-testid="player-chi">0</span> Chi</span>
+        </div>
+        <div class="combatant ally-standby">
+          <strong>Ally 2</strong>
+          <span>Standby</span>
+        </div>
+        <div class="combatant ally-standby">
+          <strong>Ally 3</strong>
+          <span>Standby</span>
+        </div>
       </div>
       <div class="combatant enemy">
         <strong>Crimson Core</strong>
@@ -34,6 +45,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <div class="turn-row">
       <div class="atb-meter">
         <span>ATB</span>
+        <div class="atb-track" aria-hidden="true">
+          <div class="atb-fill" data-testid="player-atb-fill"></div>
+        </div>
         <b data-testid="player-atb">0</b>
       </div>
       <div class="battle-log" data-testid="battle-log"></div>

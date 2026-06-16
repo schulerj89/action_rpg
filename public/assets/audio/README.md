@@ -48,10 +48,50 @@ Author: Spring Spring
 
 License: CC0
 
+`faxcorp-chi-breaker-charge-start.ogg`
+
+Source: https://opengameart.org/content/electricity-game-sound-pack
+
+Author: faxcorp
+
+License: CC0
+
+`faxcorp-chi-breaker-charge-loop.ogg`
+
+Source: https://opengameart.org/content/electricity-game-sound-pack
+
+Author: faxcorp
+
+License: CC0
+
 `wobbleboxx-level-up-rise.wav`
 
 Source: https://opengameart.org/content/level-up-power-up-coin-get-13-sounds
 
 Author: WobbleBoxx Workshop
+
+License: CC0
+
+`qubodup-punch-impact.ogg`
+
+Source: https://opengameart.org/content/37-hitspunches
+
+Author: Independent.nu / qubodup
+
+License: CC0
+
+`qubodup-kick-impact.ogg`
+
+Source: https://opengameart.org/content/37-hitspunches
+
+Author: Independent.nu / qubodup
+
+License: CC0
+
+`qubodup-enemy-impact.ogg`
+
+Source: https://opengameart.org/content/37-hitspunches
+
+Author: Independent.nu / qubodup
 
 License: CC0

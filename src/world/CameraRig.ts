@@ -58,22 +58,22 @@ export class CameraRig {
     this.mode = 'scripted';
     const forward = enemyPosition.clone().sub(heroPosition).setY(0).normalize();
     const right = new Vector3(forward.z, 0, -forward.x).normalize();
-    const targetPosition = heroPosition.clone().addScaledVector(forward, 2.85).addScaledVector(right, 1.55);
-    targetPosition.y += 1.55;
-    const targetLook = heroPosition.clone();
-    targetLook.y += 0.62;
-    await this.moveCamera(targetPosition, targetLook, 520);
+    const targetPosition = heroPosition.clone().addScaledVector(forward, -2.85).addScaledVector(right, 2.05);
+    targetPosition.y += 1.72;
+    const targetLook = heroPosition.clone().addScaledVector(forward, 0.45);
+    targetLook.y += 0.95;
+    await this.moveCamera(targetPosition, targetLook, 720);
   }
 
   async frameChiBreakerImpact(heroPosition: Vector3, enemyPosition: Vector3): Promise<void> {
     this.mode = 'scripted';
     const forward = enemyPosition.clone().sub(heroPosition).setY(0).normalize();
     const right = new Vector3(forward.z, 0, -forward.x).normalize();
-    const targetPosition = heroPosition.clone().addScaledVector(forward, -2.35).addScaledVector(right, 1.15);
-    targetPosition.y += 1.62;
-    const targetLook = heroPosition.clone().lerp(enemyPosition, 0.54);
-    targetLook.y += 0.9;
-    await this.moveCamera(targetPosition, targetLook, 420);
+    const targetPosition = heroPosition.clone().addScaledVector(forward, -3.6).addScaledVector(right, 2.35);
+    targetPosition.y += 2.18;
+    const targetLook = heroPosition.clone().lerp(enemyPosition, 0.42);
+    targetLook.y += 1.16;
+    await this.moveCamera(targetPosition, targetLook, 760);
   }
 
   async restoreBattleView(heroPosition: Vector3, enemyPosition: Vector3): Promise<void> {

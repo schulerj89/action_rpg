@@ -1,8 +1,16 @@
-import { Vector3 } from 'three';
+export interface MovementAxes {
+  reverse: boolean;
+  forward: number;
+  turn: number;
+}
 
 export class InputController {
   private readonly keys = new Set<string>();
-  private readonly movement = new Vector3();
+  private readonly axes: MovementAxes = {
+    reverse: false,
+    forward: 0,
+    turn: 0,
+  };
 
   constructor() {
     window.addEventListener('keydown', this.handleKeyDown);
@@ -16,30 +24,32 @@ export class InputController {
     window.removeEventListener('blur', this.clear);
   }
 
-  getMovementDirection(): Vector3 {
-    this.movement.set(0, 0, 0);
+  getMovementAxes(): MovementAxes {
+    this.axes.reverse = false;
+    this.axes.forward = 0;
+    this.axes.turn = 0;
 
     if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) {
-      this.movement.z -= 1;
+      this.axes.forward += 1;
     }
     if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) {
-      this.movement.z += 1;
+      this.axes.reverse = true;
     }
     if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) {
-      this.movement.x -= 1;
+      this.axes.turn -= 1;
     }
     if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) {
-      this.movement.x += 1;
+      this.axes.turn += 1;
     }
 
-    if (this.movement.lengthSq() > 0) {
-      this.movement.normalize();
-    }
-
-    return this.movement;
+    return this.axes;
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
+    if (isMovementKey(event.code)) {
+      event.preventDefault();
+    }
+
     if (event.repeat) {
       return;
     }
@@ -47,10 +57,27 @@ export class InputController {
   };
 
   private readonly handleKeyUp = (event: KeyboardEvent): void => {
+    if (isMovementKey(event.code)) {
+      event.preventDefault();
+    }
+
     this.keys.delete(event.code);
   };
 
   private readonly clear = (): void => {
     this.keys.clear();
   };
+}
+
+function isMovementKey(code: string): boolean {
+  return (
+    code === 'KeyW' ||
+    code === 'KeyA' ||
+    code === 'KeyS' ||
+    code === 'KeyD' ||
+    code === 'ArrowUp' ||
+    code === 'ArrowLeft' ||
+    code === 'ArrowDown' ||
+    code === 'ArrowRight'
+  );
 }

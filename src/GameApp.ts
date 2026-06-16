@@ -17,6 +17,11 @@ import { battleTriggerPosition, createWorldScene } from './world/SceneFactory';
 import type { WorldScene } from './world/SceneFactory';
 
 const playerMoveSpeed = 4.2;
+const explorationAcceleration = 18;
+const explorationDeceleration = 24;
+const explorationPivotTurnSpeed = 3.9;
+const explorationReverseTurnSpeed = 5.6;
+const movementStopThreshold = 0.03;
 
 export class GameApp {
   private readonly canvas: HTMLCanvasElement;
@@ -29,10 +34,15 @@ export class GameApp {
   private readonly hero: HeroCharacter;
   private readonly hud: BattleHud;
   private readonly input = new InputController();
+  private readonly explorationVelocity = new Vector3();
+  private readonly heroForward = new Vector3(0, 0, -1);
   private readonly movement = new Vector3();
+  private readonly targetVelocity = new Vector3();
+  private readonly chiBreakerFootPosition = new Vector3();
   private readonly trigger: EncounterTrigger;
   private readonly vfx = new VfxController();
   private readonly world: WorldScene;
+  private reverseTurnTargetYaw?: number;
   private lastFrameTime = performance.now();
 
   private constructor(canvas: HTMLCanvasElement, hero: HeroCharacter) {
@@ -72,6 +82,7 @@ export class GameApp {
 
     this.world.scene.add(this.hero.root, this.enemy.root, this.vfx.root);
     this.hero.root.position.set(0, 0, 0);
+    this.hero.root.rotation.y = Math.PI;
     this.enemy.root.visible = false;
     this.installResizeHandler();
     this.installTestApi();
@@ -98,7 +109,12 @@ export class GameApp {
     this.updateWorld(deltaSeconds);
     this.hero.update(deltaSeconds);
     this.enemy.update(deltaSeconds);
-    this.vfx.update(deltaSeconds, this.hero.root.position, this.hero.root.rotation.y);
+    this.vfx.update(
+      deltaSeconds,
+      this.hero.root.position,
+      this.hero.root.rotation.y,
+      this.hero.getLeftFootWorldPosition(this.chiBreakerFootPosition),
+    );
     this.battle.update(deltaSeconds);
     this.updateDebug();
 
@@ -109,21 +125,54 @@ export class GameApp {
 
   private updateWorld(deltaSeconds: number): void {
     if (this.battle.getPhase() === 'exploration') {
-      this.movement.copy(this.input.getMovementDirection());
+      const input = this.input.getMovementAxes();
+      if (input.turn !== 0) {
+        this.hero.root.rotation.y -= input.turn * explorationPivotTurnSpeed * deltaSeconds;
+        this.reverseTurnTargetYaw = undefined;
+      }
+      if (input.reverse) {
+        this.reverseTurnTargetYaw ??= this.hero.root.rotation.y + Math.PI;
+        this.hero.root.rotation.y = turnTowardAngle(
+          this.hero.root.rotation.y,
+          this.reverseTurnTargetYaw,
+          explorationReverseTurnSpeed * deltaSeconds,
+        );
+      } else {
+        this.reverseTurnTargetYaw = undefined;
+      }
 
-      if (this.movement.lengthSq() > 0) {
-        this.hero.root.position.addScaledVector(this.movement, playerMoveSpeed * deltaSeconds);
-        this.hero.faceToward(this.hero.root.position.clone().add(this.movement));
+      setYawForward(this.hero.root.rotation.y, this.heroForward);
+
+      const hasMovementInput = input.forward > 0;
+      this.targetVelocity.copy(this.heroForward).multiplyScalar(hasMovementInput ? playerMoveSpeed : 0);
+      const moveRate = hasMovementInput ? explorationAcceleration : explorationDeceleration;
+
+      moveVectorToward(this.explorationVelocity, this.targetVelocity, moveRate * deltaSeconds);
+
+      if (this.explorationVelocity.lengthSq() < movementStopThreshold * movementStopThreshold) {
+        this.explorationVelocity.set(0, 0, 0);
+      }
+
+      this.hero.root.position.addScaledVector(this.explorationVelocity, deltaSeconds);
+
+      if (this.explorationVelocity.lengthSq() > movementStopThreshold * movementStopThreshold) {
         this.hero.play('run');
       } else {
         this.hero.play('explorationIdle');
       }
 
-      this.cameraRig.updateExploration(this.hero.root.position, this.movement, deltaSeconds);
+      this.movement.copy(this.explorationVelocity);
+      if (this.movement.lengthSq() > 0) {
+        this.movement.normalize();
+      }
+
+      this.cameraRig.updateExploration(this.hero.root.position, this.heroForward, deltaSeconds);
 
       if (this.trigger.check(this.hero.root.position)) {
         void this.battle.startBattle();
       }
+    } else {
+      this.explorationVelocity.set(0, 0, 0);
     }
   }
 
@@ -199,4 +248,33 @@ export class GameApp {
       },
     };
   }
+}
+
+function moveVectorToward(current: Vector3, target: Vector3, maxDelta: number): void {
+  const dx = target.x - current.x;
+  const dz = target.z - current.z;
+  const distance = Math.hypot(dx, dz);
+
+  if (distance <= maxDelta || distance < 0.0001) {
+    current.copy(target);
+    return;
+  }
+
+  const scale = maxDelta / distance;
+  current.x += dx * scale;
+  current.z += dz * scale;
+}
+
+function setYawForward(yaw: number, target: Vector3): void {
+  target.set(Math.sin(yaw), 0, Math.cos(yaw)).normalize();
+}
+
+function turnTowardAngle(current: number, target: number, maxStep: number): number {
+  const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
+
+  if (Math.abs(delta) <= maxStep) {
+    return target;
+  }
+
+  return current + Math.sign(delta) * maxStep;
 }

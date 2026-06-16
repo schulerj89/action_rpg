@@ -59,17 +59,22 @@ export class VfxController {
     this.root.add(this.aura, this.footCharge, this.burst);
   }
 
-  update(deltaSeconds: number, heroPosition: Vector3, heroYaw = 0): void {
+  update(deltaSeconds: number, heroPosition: Vector3, heroYaw = 0, chargedFootPosition?: Vector3): void {
     this.aura.position.copy(heroPosition);
     this.aura.rotation.y += deltaSeconds * (this.auraStyle === 'healing' ? 4.2 : 2.8);
     const baseIntensity = this.auraStyle === 'healing' ? 5.5 : 4.2;
     this.auraLight.intensity = this.auraActive ? baseIntensity + Math.sin(performance.now() * 0.012) * 0.8 : 0;
 
-    const footOffset = new Vector3(0.32, 0.2, 0.18).applyAxisAngle(new Vector3(0, 1, 0), heroYaw);
-    this.footCharge.position.copy(heroPosition).add(footOffset);
+    if (chargedFootPosition) {
+      this.footCharge.position.copy(chargedFootPosition);
+      this.footCharge.position.y += 0.16;
+    } else {
+      const footOffset = new Vector3(-0.32, 0.18, -0.18).applyAxisAngle(new Vector3(0, 1, 0), heroYaw);
+      this.footCharge.position.copy(heroPosition).add(footOffset);
+    }
     this.footCharge.rotation.y += deltaSeconds * 7;
     this.footCharge.rotation.x += deltaSeconds * 3.6;
-    this.footChargeLight.intensity = this.footChargeActive ? 3.6 + Math.sin(performance.now() * 0.018) : 0;
+    this.footChargeLight.intensity = this.footChargeActive ? 4.4 + Math.sin(performance.now() * 0.018) : 0;
     this.footChargeMaterials.forEach((material, index) => {
       material.opacity = this.footChargeActive
         ? 0.58 + Math.sin(performance.now() * 0.015 + index) * 0.18
@@ -139,7 +144,19 @@ export class VfxController {
         depthWrite: false,
       }),
     );
-    this.footCharge.add(core, this.footChargeLight);
+
+    const verticalMaterial = new MeshBasicMaterial({
+      color: '#b9fbff',
+      transparent: true,
+      opacity: 0.68,
+      blending: AdditiveBlending,
+      depthWrite: false,
+    });
+    const verticalRing = new Mesh(new RingGeometry(0.2, 0.27, 40), verticalMaterial);
+    verticalRing.rotation.y = Math.PI / 2;
+    this.footChargeMaterials.push(verticalMaterial);
+
+    this.footCharge.add(core, verticalRing, this.footChargeLight);
     this.footCharge.visible = false;
   }
 }

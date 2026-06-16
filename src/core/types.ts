@@ -36,6 +36,8 @@ export type PhysicalMoveId =
 export type ChiMoveId = 'chiBreaker' | 'healingChi';
 export type MoveId = PhysicalMoveId | ChiMoveId;
 export type ChiMoveKind = 'damage' | 'heal';
+export type StatKey = keyof HeroStats;
+export type MoveBannerTone = 'player' | 'enemy' | 'chi' | 'healing';
 
 export interface HeroStats {
   strength: number;
@@ -62,6 +64,12 @@ export interface BattleSnapshot {
   canAct: boolean;
   equippedMoves: EquippedMoveSnapshot[];
   logLine: string;
+}
+
+export interface LevelUpGain {
+  stat: StatKey;
+  amount: number;
+  nextValue: number;
 }
 
 export interface EquippedMoveSnapshot {

@@ -23,12 +23,18 @@ export class HeroCharacter {
 
   private readonly mixer: AnimationMixer;
   private readonly actions = new Map<HeroAnimationKey, AnimationAction>();
+  private readonly bones = new Map<string, Object3D>();
   private currentAction?: AnimationAction;
   private currentKey?: HeroAnimationKey;
 
   private constructor(root: Group, visualRoot: Object3D, clips: Map<HeroAnimationKey, AnimationClip>) {
     this.root = root;
     this.mixer = new AnimationMixer(visualRoot);
+    visualRoot.traverse((child) => {
+      if (child.name) {
+        this.bones.set(child.name, child);
+      }
+    });
 
     clips.forEach((clip, key) => {
       this.actions.set(key, this.mixer.clipAction(clip));
@@ -114,6 +120,34 @@ export class HeroCharacter {
 
     this.root.rotation.y = Math.atan2(dx, dz);
   }
+
+  faceTowardSmooth(target: Vector3, deltaSeconds: number, turnSpeed = 12): void {
+    const dx = target.x - this.root.position.x;
+    const dz = target.z - this.root.position.z;
+
+    if (Math.abs(dx) + Math.abs(dz) < 0.001) {
+      return;
+    }
+
+    const targetAngle = Math.atan2(dx, dz);
+    const currentAngle = this.root.rotation.y;
+    const angleDelta = normalizeAngle(targetAngle - currentAngle);
+    const smoothing = 1 - Math.exp(-turnSpeed * deltaSeconds);
+    this.root.rotation.y = currentAngle + angleDelta * smoothing;
+  }
+
+  getLeftFootWorldPosition(target: Vector3): Vector3 {
+    const leftFoot = this.bones.get('LeftFoot');
+    if (leftFoot) {
+      return leftFoot.getWorldPosition(target);
+    }
+
+    return target.copy(this.root.position).add(new Vector3(-0.32, 0.16, 0).applyAxisAngle(new Vector3(0, 1, 0), this.root.rotation.y));
+  }
+}
+
+function normalizeAngle(angle: number): number {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
 }
 
 function normalizeModel(model: Object3D): void {

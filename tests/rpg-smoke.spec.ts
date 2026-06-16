@@ -29,6 +29,33 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   expect(fpsAfter).not.toEqual(fpsBefore);
   expect(fpsAfter).toMatch(/FPS/i);
 
+  const startPosition = await page.evaluate(() => window.__rpgTest?.getState().position);
+  await page.keyboard.down('ArrowUp');
+  await page.waitForTimeout(450);
+  await page.keyboard.up('ArrowUp');
+  const afterForward = await page.evaluate(() => window.__rpgTest?.getState().position);
+  expect(afterForward?.z).toBeLessThan((startPosition?.z ?? 0) - 0.35);
+
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(420);
+  await page.keyboard.up('ArrowRight');
+  await page.keyboard.down('ArrowUp');
+  await page.waitForTimeout(450);
+  await page.keyboard.up('ArrowUp');
+  const afterPivotForward = await page.evaluate(() => window.__rpgTest?.getState().position);
+  expect(afterPivotForward?.x).toBeGreaterThan((afterForward?.x ?? 0) + 0.2);
+
+  await page.keyboard.down('ArrowDown');
+  await page.waitForTimeout(450);
+  await page.keyboard.up('ArrowDown');
+  const afterTurnAround = await page.evaluate(() => window.__rpgTest?.getState().position);
+  expect(Math.hypot((afterTurnAround?.x ?? 0) - (afterPivotForward?.x ?? 0), (afterTurnAround?.z ?? 0) - (afterPivotForward?.z ?? 0))).toBeLessThan(0.08);
+  await page.keyboard.down('ArrowUp');
+  await page.waitForTimeout(450);
+  await page.keyboard.up('ArrowUp');
+  const afterTurnAroundForward = await page.evaluate(() => window.__rpgTest?.getState().position);
+  expect(afterTurnAroundForward?.x).toBeLessThan((afterTurnAround?.x ?? 0) - 0.2);
+
   await page.getByTestId('debug-boss-mode').check();
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().bossMode)).toBe(true);
 
@@ -37,11 +64,13 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
   await page.evaluate(() => window.__rpgTest?.forceReady());
   await expect(page.getByTestId('move-slot-0')).toBeEnabled();
+  await expect(page.getByTestId('player-atb-fill')).toHaveAttribute('style', /--atb-progress: 100%/);
 
   const initialEnemyHp = await enemyHp(page);
   expect(initialEnemyHp).toBeGreaterThan(500);
   await page.getByTestId('move-slot-0').click();
   await expect(page.getByTestId('move-banner')).toContainText('Iron Palm Rush');
+  await expect(page.getByTestId('move-banner')).toHaveClass(/player/);
   await expect.poll(() => enemyHp(page)).toBeLessThan(initialEnemyHp);
 
   await expect
@@ -51,6 +80,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   const heroHpBeforeCounter = await playerHp(page);
   await page.evaluate(() => window.__rpgTest?.forceEnemyReady());
   await expect(page.getByTestId('move-banner')).toContainText('Pulse Ram');
+  await expect(page.getByTestId('move-banner')).toHaveClass(/enemy/);
   await expect.poll(() => playerHp(page)).toBeLessThan(heroHpBeforeCounter);
 
   await page.evaluate(() => {
@@ -63,6 +93,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   const heroHpBeforeHeal = await playerHp(page);
   await page.getByTestId('move-slot-2').click();
   await expect(page.getByTestId('move-banner')).toContainText('Healing Chi');
+  await expect(page.getByTestId('move-banner')).toHaveClass(/healing/);
   await expect.poll(() => playerHp(page)).toBeGreaterThan(heroHpBeforeHeal);
 
   await page.evaluate(() => window.__rpgTest?.forceReady());
@@ -83,6 +114,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   const afterKickHp = await enemyHp(page);
   await page.getByTestId('move-slot-2').click();
   await expect(page.getByTestId('move-banner')).toContainText('Chi Breaker');
+  await expect(page.getByTestId('move-banner')).toHaveClass(/chi/);
   await expect.poll(() => enemyHp(page), { timeout: 8_000 }).toBeLessThan(afterKickHp);
 
   await page.evaluate(() => {
@@ -97,7 +129,9 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('victory-level-title')).toHaveText('Level Up');
   await expect(page.getByTestId('victory-level')).toContainText('Level 1 -> 2');
   await expect(page.getByTestId('victory-xp-progress')).toBeVisible();
-  await expect(page.getByTestId('victory-xp-fill')).toHaveAttribute('style', /--xp-progress: 100%/);
+  await expect(page.getByTestId('victory-stat-gains')).toContainText('Strength');
+  await expect(page.getByTestId('victory-stat-gains')).toContainText('Dexterity');
+  await expect.poll(() => page.getByTestId('victory-xp-fill').getAttribute('style')).toContain('--xp-progress: 0%');
   await expect(page.getByTestId('victory-xp')).toContainText('XP');
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().battleState))

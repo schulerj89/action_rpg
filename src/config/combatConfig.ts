@@ -135,9 +135,9 @@ export const playerChiMoves: Record<ChiMoveId, ChiMoveDefinition> = {
     focusScale: 7.5,
     strengthScale: 2.1,
     flatBonus: 32,
-    chargeMs: 1250,
+    chargeMs: 1500,
     flashMs: 340,
-    timeScale: 0.82,
+    timeScale: 0.58,
   },
   healingChi: {
     id: 'healingChi',

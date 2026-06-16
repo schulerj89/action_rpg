@@ -1,4 +1,4 @@
-import type { BattleSnapshot } from '../core/types';
+import type { BattleSnapshot, LevelUpGain, MoveBannerTone } from '../core/types';
 
 type MoveSlotHandler = (slotIndex: number) => void;
 type ActionHandler = () => void;
@@ -10,6 +10,7 @@ export class BattleHud {
   private readonly enemyHp: HTMLElement;
   private readonly enemyHpMax: HTMLElement;
   private readonly playerAtb: HTMLElement;
+  private readonly playerAtbFill: HTMLElement;
   private readonly playerChi: HTMLElement;
   private readonly enemyAtb: HTMLElement;
   private readonly log: HTMLElement;
@@ -19,6 +20,7 @@ export class BattleHud {
   private readonly victoryResults: HTMLElement;
   private readonly victoryLevelTitle: HTMLElement;
   private readonly victoryLevel: HTMLElement;
+  private readonly victoryStatGains: HTMLElement;
   private readonly victoryXpFill: HTMLElement;
   private readonly victoryXp: HTMLElement;
   private readonly victoryTotalXp: HTMLElement;
@@ -34,6 +36,7 @@ export class BattleHud {
     const enemyHp = root.querySelector<HTMLElement>('[data-testid="enemy-hp"]');
     const enemyHpMax = root.querySelector<HTMLElement>('[data-testid="enemy-hp-max"]');
     const playerAtb = root.querySelector<HTMLElement>('[data-testid="player-atb"]');
+    const playerAtbFill = root.querySelector<HTMLElement>('[data-testid="player-atb-fill"]');
     const playerChi = root.querySelector<HTMLElement>('[data-testid="player-chi"]');
     const enemyAtb = root.querySelector<HTMLElement>('[data-testid="enemy-atb"]');
     const log = root.querySelector<HTMLElement>('[data-testid="battle-log"]');
@@ -47,6 +50,7 @@ export class BattleHud {
     const victoryResults = root.querySelector<HTMLElement>('[data-testid="victory-results"]');
     const victoryLevelTitle = root.querySelector<HTMLElement>('[data-testid="victory-level-title"]');
     const victoryLevel = root.querySelector<HTMLElement>('[data-testid="victory-level"]');
+    const victoryStatGains = root.querySelector<HTMLElement>('[data-testid="victory-stat-gains"]');
     const victoryXpFill = root.querySelector<HTMLElement>('[data-testid="victory-xp-fill"]');
     const victoryXp = root.querySelector<HTMLElement>('[data-testid="victory-xp"]');
     const victoryTotalXp = root.querySelector<HTMLElement>('[data-testid="victory-total-xp"]');
@@ -61,6 +65,7 @@ export class BattleHud {
       !enemyHp ||
       !enemyHpMax ||
       !playerAtb ||
+      !playerAtbFill ||
       !playerChi ||
       !enemyAtb ||
       !log ||
@@ -70,6 +75,7 @@ export class BattleHud {
       !victoryResults ||
       !victoryLevelTitle ||
       !victoryLevel ||
+      !victoryStatGains ||
       !victoryXpFill ||
       !victoryXp ||
       !victoryTotalXp ||
@@ -86,6 +92,7 @@ export class BattleHud {
     this.enemyHp = enemyHp;
     this.enemyHpMax = enemyHpMax;
     this.playerAtb = playerAtb;
+    this.playerAtbFill = playerAtbFill;
     this.playerChi = playerChi;
     this.enemyAtb = enemyAtb;
     this.log = log;
@@ -95,6 +102,7 @@ export class BattleHud {
     this.victoryResults = victoryResults;
     this.victoryLevelTitle = victoryLevelTitle;
     this.victoryLevel = victoryLevel;
+    this.victoryStatGains = victoryStatGains;
     this.victoryXpFill = victoryXpFill;
     this.victoryXp = victoryXp;
     this.victoryTotalXp = victoryTotalXp;
@@ -119,16 +127,40 @@ export class BattleHud {
     this.root.hidden = !visible;
   }
 
-  showVictoryResults(xpGained: number, totalXp: number, previousLevel: number, nextLevel: number): void {
+  showVictoryResults(
+    xpGained: number,
+    totalXp: number,
+    previousLevel: number,
+    nextLevel: number,
+    statGains: LevelUpGain[],
+  ): void {
     this.victoryLevelTitle.textContent = 'Level Up';
     this.victoryLevel.textContent = `Level ${previousLevel} -> ${nextLevel}`;
     this.victoryXp.textContent = `+${xpGained} XP`;
     this.victoryTotalXp.textContent = `${totalXp} total XP`;
-    this.victoryXpFill.classList.remove('fill');
-    this.victoryXpFill.style.setProperty('--xp-progress', '100%');
+    this.victoryStatGains.innerHTML = '';
+    statGains.forEach((gain) => {
+      const row = document.createElement('div');
+      row.className = 'victory-gain-row';
+
+      const label = document.createElement('span');
+      label.textContent = formatStatName(gain.stat);
+
+      const value = document.createElement('strong');
+      value.textContent = `+${gain.amount} -> ${gain.nextValue}`;
+
+      row.append(label, value);
+      this.victoryStatGains.append(row);
+    });
+    this.victoryXpFill.classList.remove('fill', 'reset');
+    this.victoryXpFill.style.setProperty('--xp-progress', '0%');
     this.victoryResults.hidden = false;
     void this.victoryXpFill.offsetWidth;
-    this.victoryXpFill.classList.add('fill');
+    this.victoryXpFill.classList.add('fill', 'reset');
+    window.setTimeout(() => {
+      this.victoryXpFill.classList.remove('fill', 'reset');
+      this.victoryXpFill.style.setProperty('--xp-progress', '0%');
+    }, 1500);
   }
 
   hideVictoryResults(): void {
@@ -139,6 +171,7 @@ export class BattleHud {
 
   setDarkened(darkened: boolean): void {
     this.darkener.classList.toggle('active', darkened);
+    this.root.classList.toggle('cinematic', darkened);
   }
 
   pulseFlash(): void {
@@ -147,11 +180,12 @@ export class BattleHud {
     this.flash.classList.add('pulse');
   }
 
-  showMoveBanner(actorName: string, moveName: string): void {
+  showMoveBanner(actorName: string, moveName: string, tone: MoveBannerTone = 'player'): void {
     window.clearTimeout(this.bannerTimer);
     this.moveBanner.textContent = `${actorName}: ${moveName}`;
     this.moveBanner.hidden = false;
-    this.moveBanner.classList.remove('pop');
+    this.moveBanner.classList.remove('pop', 'player', 'enemy', 'chi', 'healing');
+    this.moveBanner.classList.add(tone);
     void this.moveBanner.offsetWidth;
     this.moveBanner.classList.add('pop');
     this.bannerTimer = window.setTimeout(() => {
@@ -176,5 +210,21 @@ export class BattleHud {
       button.dataset.moveId = move?.id ?? '';
     });
     this.victoryState.hidden = snapshot.phase !== 'victory';
+    this.playerAtbFill.style.setProperty('--atb-progress', `${Math.min(snapshot.player.atb, 100)}%`);
+  }
+}
+
+function formatStatName(stat: LevelUpGain['stat']): string {
+  switch (stat) {
+    case 'strength':
+      return 'Strength';
+    case 'dexterity':
+      return 'Dexterity';
+    case 'vitality':
+      return 'Vitality';
+    case 'focus':
+      return 'Focus';
+    case 'defense':
+      return 'Defense';
   }
 }

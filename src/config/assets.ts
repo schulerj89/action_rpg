@@ -67,10 +67,50 @@ export const healingSfxAsset = {
   license: 'CC0',
 };
 
+export const chiBreakerChargeStartSfxAsset = {
+  title: 'Electricity Game Sound Pack - chargestart',
+  url: '/assets/audio/faxcorp-chi-breaker-charge-start.ogg',
+  sourceUrl: 'https://opengameart.org/content/electricity-game-sound-pack',
+  author: 'faxcorp',
+  license: 'CC0',
+};
+
+export const chiBreakerChargeLoopSfxAsset = {
+  title: 'Electricity Game Sound Pack - charge',
+  url: '/assets/audio/faxcorp-chi-breaker-charge-loop.ogg',
+  sourceUrl: 'https://opengameart.org/content/electricity-game-sound-pack',
+  author: 'faxcorp',
+  license: 'CC0',
+};
+
 export const levelUpSfxAsset = {
   title: 'Level up, power up, Coin get - Rise03',
   url: '/assets/audio/wobbleboxx-level-up-rise.wav',
   sourceUrl: 'https://opengameart.org/content/level-up-power-up-coin-get-13-sounds',
   author: 'WobbleBoxx Workshop',
+  license: 'CC0',
+};
+
+export const punchImpactSfxAsset = {
+  title: '37 hits/punches - hit09',
+  url: '/assets/audio/qubodup-punch-impact.ogg',
+  sourceUrl: 'https://opengameart.org/content/37-hitspunches',
+  author: 'Independent.nu / qubodup',
+  license: 'CC0',
+};
+
+export const kickImpactSfxAsset = {
+  title: '37 hits/punches - hit16',
+  url: '/assets/audio/qubodup-kick-impact.ogg',
+  sourceUrl: 'https://opengameart.org/content/37-hitspunches',
+  author: 'Independent.nu / qubodup',
+  license: 'CC0',
+};
+
+export const enemyImpactSfxAsset = {
+  title: '37 hits/punches - hit30',
+  url: '/assets/audio/qubodup-enemy-impact.ogg',
+  sourceUrl: 'https://opengameart.org/content/37-hitspunches',
+  author: 'Independent.nu / qubodup',
   license: 'CC0',
 };

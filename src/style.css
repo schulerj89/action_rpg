@@ -94,7 +94,7 @@ button.ghost {
   right: 20px;
   bottom: 20px;
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) minmax(220px, 0.8fr) auto;
+  grid-template-columns: minmax(330px, 1.15fr) minmax(250px, 0.85fr) auto;
   gap: 14px;
   align-items: stretch;
   padding: 14px;
@@ -103,6 +103,15 @@ button.ghost {
   background: rgba(8, 12, 16, 0.82);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(10px);
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
+}
+
+.battle-ui.cinematic {
+  opacity: 0.36;
+  pointer-events: none;
+  transform: translateY(68px);
 }
 
 .battle-ui[hidden],
@@ -157,6 +166,31 @@ button.ghost {
   font-weight: 750;
 }
 
+.victory-stat-gains {
+  width: min(420px, calc(100vw - 56px));
+  display: grid;
+  gap: 6px;
+  justify-self: center;
+}
+
+.victory-gain-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #dff7ff;
+  background: rgba(5, 18, 36, 0.34);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.victory-gain-row strong {
+  color: #fef08a;
+  font-size: 14px;
+}
+
 .victory-level {
   color: #ffffff;
   font-size: 24px;
@@ -191,6 +225,10 @@ button.ghost {
   animation: xp-fill 1100ms cubic-bezier(0.2, 0.78, 0.18, 1) both;
 }
 
+.xp-progress-fill.reset {
+  animation: xp-level-reset 1500ms cubic-bezier(0.2, 0.78, 0.18, 1) both;
+}
+
 .move-banner {
   top: 18px;
   left: 50%;
@@ -209,14 +247,44 @@ button.ghost {
   text-align: center;
 }
 
+.move-banner.player {
+  background: #f6d365;
+  box-shadow: 0 12px 38px rgba(246, 211, 101, 0.32);
+}
+
+.move-banner.enemy {
+  color: #fff7ed;
+  background: #ef4444;
+  box-shadow: 0 12px 38px rgba(239, 68, 68, 0.34);
+}
+
+.move-banner.chi {
+  color: #e0fbff;
+  background: #2563eb;
+  box-shadow: 0 12px 38px rgba(37, 99, 235, 0.38);
+}
+
+.move-banner.healing {
+  color: #052e16;
+  background: #86efac;
+  box-shadow: 0 12px 38px rgba(134, 239, 172, 0.36);
+}
+
 .move-banner.pop {
   animation: move-pop 1450ms ease both;
 }
 
 .combatants {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.72fr);
   gap: 10px;
+}
+
+.party-roster {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(88px, 0.75fr) minmax(88px, 0.75fr);
+  gap: 8px;
+  min-width: 0;
 }
 
 .combatant {
@@ -226,6 +294,19 @@ button.ghost {
   padding: 10px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.08);
+}
+
+.party-leader {
+  border-left: 3px solid #50e3c2;
+}
+
+.ally-standby {
+  opacity: 0.72;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.ally-standby strong {
+  color: #cbd5e1;
 }
 
 .combatant strong {
@@ -252,16 +333,35 @@ button.ghost {
 }
 
 .atb-meter {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto minmax(110px, 1fr) 36px;
+  align-items: center;
   gap: 12px;
   padding: 9px 10px;
   border-radius: 8px;
-  background: rgba(80, 227, 194, 0.12);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .atb-meter b {
   color: #50e3c2;
+  text-align: right;
+}
+
+.atb-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(4, 9, 14, 0.66);
+  box-shadow: inset 0 1px 7px rgba(0, 0, 0, 0.42);
+}
+
+.atb-fill {
+  width: var(--atb-progress, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ef4444, #f97316, #facc15, #22c55e, #06b6d4, #3b82f6, #a855f7);
+  box-shadow: 0 0 16px rgba(103, 232, 249, 0.56);
+  transition: width 120ms linear;
 }
 
 .battle-log {
@@ -431,7 +531,7 @@ button.ghost {
   }
 
   35% {
-    opacity: 0.92;
+    opacity: 0.58;
   }
 
   100% {
@@ -467,6 +567,20 @@ button.ghost {
   }
 }
 
+@keyframes xp-level-reset {
+  0% {
+    width: 0;
+  }
+
+  62% {
+    width: 100%;
+  }
+
+  100% {
+    width: 0;
+  }
+}
+
 @media (max-width: 820px) {
   .battle-ui {
     grid-template-columns: 1fr;
@@ -487,5 +601,9 @@ button.ghost {
 
   .battle-actions button {
     flex: 1 1 120px;
+  }
+
+  .party-roster {
+    grid-template-columns: 1fr;
   }
 }
