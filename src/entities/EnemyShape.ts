@@ -1,15 +1,19 @@
 import {
+  Box3,
   BufferGeometry,
   Color,
   Group,
   IcosahedronGeometry,
   Mesh,
   MeshStandardMaterial,
+  Object3D,
   PointLight,
   RingGeometry,
   TorusKnotGeometry,
   Vector3,
 } from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { enemyAssetDefinitions, type EnemyAssetId } from '../config/enemyAssets';
 
 export class EnemyShape {
   readonly root = new Group();
@@ -32,9 +36,12 @@ export class EnemyShape {
     this.bodyMaterial,
   );
   private readonly base = new Mesh(new RingGeometry(1.15, 1.35, 36), this.baseMaterial);
+  private readonly generatedModels = new Map<EnemyAssetId, Object3D>();
+  private readonly loader = new GLTFLoader();
   private readonly light = new PointLight('#ff5959', 0.8, 5);
   private bossMode = false;
   private hitTimer = 0;
+  private loadedModelId?: EnemyAssetId;
 
   constructor() {
     this.body.castShadow = true;
@@ -45,6 +52,29 @@ export class EnemyShape {
     this.light.position.set(0, 0.4, 0.4);
     this.root.add(this.body, this.base, this.light);
     this.reset();
+  }
+
+  async loadGeneratedAssets(): Promise<void> {
+    await Promise.all(
+      enemyAssetDefinitions.map(async (definition) => {
+        try {
+          const gltf = await this.loader.loadAsync(definition.url);
+          const model = gltf.scene;
+          model.name = definition.id;
+          normalizeModel(model, definition.targetHeight);
+          model.visible = false;
+          model.traverse((child) => {
+            child.castShadow = false;
+            child.receiveShadow = true;
+          });
+          this.generatedModels.set(definition.id, model);
+          this.root.add(model);
+        } catch {
+          // Procedural fallback remains active when a generated enemy asset fails.
+        }
+      }),
+    );
+    this.applyGeneratedModel();
   }
 
   update(deltaSeconds: number): void {
@@ -84,6 +114,7 @@ export class EnemyShape {
     this.baseMaterial.emissive.set(enabled ? '#7c2d12' : '#6b1111');
     this.light.color.set(enabled ? '#fde68a' : '#ff5959');
     this.light.intensity = this.getBaseLightIntensity();
+    this.applyGeneratedModel();
   }
 
   reset(): void {
@@ -92,7 +123,38 @@ export class EnemyShape {
     this.root.visible = true;
   }
 
+  getVisualState(): { loaded: EnemyAssetId[]; modelId?: EnemyAssetId } {
+    return {
+      loaded: [...this.generatedModels.keys()],
+      modelId: this.loadedModelId,
+    };
+  }
+
   private getBaseLightIntensity(): number {
     return this.bossMode ? 1.35 : 0.8;
   }
+
+  private applyGeneratedModel(): void {
+    const targetId: EnemyAssetId = this.bossMode ? 'shellback-guardian' : 'ember-prowler';
+    const targetModel = this.generatedModels.get(targetId);
+    this.generatedModels.forEach((model) => {
+      model.visible = false;
+    });
+    this.body.visible = !targetModel;
+    this.loadedModelId = targetModel ? targetId : undefined;
+    if (targetModel) {
+      targetModel.visible = true;
+    }
+  }
+}
+
+function normalizeModel(model: Object3D, targetHeight: number): void {
+  const box = new Box3().setFromObject(model);
+  const size = box.getSize(new Vector3());
+  const scale = targetHeight / Math.max(size.y, 0.001);
+  model.scale.setScalar(scale);
+  model.updateMatrixWorld(true);
+
+  const scaledBox = new Box3().setFromObject(model);
+  model.position.y = -scaledBox.min.y - 1.05;
 }

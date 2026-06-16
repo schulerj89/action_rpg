@@ -4,6 +4,15 @@ export interface MovementAxes {
   turn: number;
 }
 
+export interface FreeCameraAxes {
+  fast: boolean;
+  forward: number;
+  pitch: number;
+  strafe: number;
+  turn: number;
+  vertical: number;
+}
+
 export class InputController {
   private readonly keys = new Set<string>();
   private readonly axes: MovementAxes = {
@@ -45,6 +54,17 @@ export class InputController {
     return this.axes;
   }
 
+  getFreeCameraAxes(): FreeCameraAxes {
+    return {
+      fast: this.keys.has('ShiftLeft'),
+      forward: keyAxis(this.keys, 'KeyW', 'ArrowUp') - keyAxis(this.keys, 'KeyS', 'ArrowDown'),
+      pitch: keyAxis(this.keys, 'KeyR') - keyAxis(this.keys, 'KeyF'),
+      strafe: keyAxis(this.keys, 'KeyD') - keyAxis(this.keys, 'KeyA'),
+      turn: keyAxis(this.keys, 'ArrowRight') - keyAxis(this.keys, 'ArrowLeft'),
+      vertical: keyAxis(this.keys, 'KeyE') - keyAxis(this.keys, 'KeyQ'),
+    };
+  }
+
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
     if (isMovementKey(event.code)) {
       event.preventDefault();
@@ -80,4 +100,8 @@ function isMovementKey(code: string): boolean {
     code === 'ArrowDown' ||
     code === 'ArrowRight'
   );
+}
+
+function keyAxis(keys: Set<string>, positive: string, alternatePositive?: string): number {
+  return keys.has(positive) || (alternatePositive ? keys.has(alternatePositive) : false) ? 1 : 0;
 }

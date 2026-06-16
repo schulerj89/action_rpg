@@ -68,6 +68,12 @@ export class TownAssetSystem {
     return [...this.loadedAssets.keys()];
   }
 
+  markReferenced(id: TownAssetId): void {
+    if (!this.instanceCounts.has(id)) {
+      this.instanceCounts.set(id, 0);
+    }
+  }
+
   snapshot(): TownAssetSystemSnapshot {
     const records = [...this.loadRecords.values()];
     return {

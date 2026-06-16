@@ -8,14 +8,26 @@ interface MoveDebugOption {
   name: string;
 }
 
+export interface DebugPoseOption {
+  id: string;
+  label: string;
+}
+
 interface DebugPanelHandlers {
   onBossModeChange: (enabled: boolean) => void;
+  onCameraPose: (poseId: string) => void;
+  onCollisionOverlayToggle: () => void;
   onEquipMove: (heroId: string, slot: number, moveId: MoveId) => void;
   onForceReady: (heroId: string) => void;
+  onFreeCameraToggle: () => void;
+  onMenuToggle: () => void;
+  onOpeningCinematic: () => void;
   onStartBattle: () => void;
   onStatChange: (heroId: string, key: StatKey, value: number) => void;
   onSupportHeroToggle: (id: string, active: boolean) => void;
   onTestFaint: () => void;
+  onTeleportPose: (poseId: string) => void;
+  onWeatherCycle: () => void;
 }
 
 const sliders: Array<{ key: StatKey; label: string; max: number; min: number }> = [
@@ -31,6 +43,7 @@ export class DebugPanel {
   private readonly loadoutBox: HTMLElement;
   private readonly moveOptions: MoveDebugOption[];
   private readonly partyBox: HTMLElement;
+  private readonly poseSelect: HTMLSelectElement;
   private readonly statsBox: HTMLElement;
   private readonly slidersBox: HTMLElement;
   private readonly handlers: DebugPanelHandlers;
@@ -41,6 +54,7 @@ export class DebugPanel {
     root: Document,
     party: PartyDebugOption[],
     moveOptions: MoveDebugOption[],
+    poses: DebugPoseOption[],
     bossMode: boolean,
     handlers: DebugPanelHandlers,
   ) {
@@ -53,6 +67,14 @@ export class DebugPanel {
     const forceReady = root.querySelector<HTMLButtonElement>('[data-testid="debug-force-ready"]');
     const testFaint = root.querySelector<HTMLButtonElement>('[data-testid="debug-test-faint"]');
     const bossModeToggle = root.querySelector<HTMLInputElement>('[data-testid="debug-boss-mode"]');
+    const poseSelect = root.querySelector<HTMLSelectElement>('[data-testid="debug-pose-select"]');
+    const teleportPose = root.querySelector<HTMLButtonElement>('[data-testid="debug-teleport-pose"]');
+    const cameraPose = root.querySelector<HTMLButtonElement>('[data-testid="debug-camera-pose"]');
+    const freeCamera = root.querySelector<HTMLButtonElement>('[data-testid="debug-free-camera"]');
+    const collision = root.querySelector<HTMLButtonElement>('[data-testid="debug-collision"]');
+    const weather = root.querySelector<HTMLButtonElement>('[data-testid="debug-weather"]');
+    const openingCinematic = root.querySelector<HTMLButtonElement>('[data-testid="debug-opening-cinematic"]');
+    const openMenu = root.querySelector<HTMLButtonElement>('[data-testid="debug-open-menu"]');
 
     if (
       !statsBox ||
@@ -63,7 +85,15 @@ export class DebugPanel {
       !startBattle ||
       !forceReady ||
       !testFaint ||
-      !bossModeToggle
+      !bossModeToggle ||
+      !poseSelect ||
+      !teleportPose ||
+      !cameraPose ||
+      !freeCamera ||
+      !collision ||
+      !weather ||
+      !openingCinematic ||
+      !openMenu
     ) {
       throw new Error('Debug panel markup is missing.');
     }
@@ -73,6 +103,7 @@ export class DebugPanel {
     this.slidersBox = slidersBox;
     this.loadoutBox = loadoutBox;
     this.partyBox = partyBox;
+    this.poseSelect = poseSelect;
     this.party = party;
     this.moveOptions = moveOptions;
     this.handlers = handlers;
@@ -87,12 +118,24 @@ export class DebugPanel {
       handlers.onForceReady(this.selectedHeroId);
     });
     testFaint.addEventListener('click', handlers.onTestFaint);
+    teleportPose.addEventListener('click', () => {
+      handlers.onTeleportPose(this.poseSelect.value);
+    });
+    cameraPose.addEventListener('click', () => {
+      handlers.onCameraPose(this.poseSelect.value);
+    });
+    freeCamera.addEventListener('click', handlers.onFreeCameraToggle);
+    collision.addEventListener('click', handlers.onCollisionOverlayToggle);
+    weather.addEventListener('click', handlers.onWeatherCycle);
+    openingCinematic.addEventListener('click', handlers.onOpeningCinematic);
+    openMenu.addEventListener('click', handlers.onMenuToggle);
     this.heroSelect.addEventListener('change', () => {
       this.selectedHeroId = this.heroSelect.value;
       this.renderSelectedHeroControls();
     });
 
     this.renderHeroSelector();
+    this.renderPoseSelector(poses);
     this.renderParty();
     this.renderSelectedHeroControls();
   }
@@ -113,10 +156,13 @@ export class DebugPanel {
       `Scene ${info.sceneId} Draws ${info.renderCalls}`,
       `GPU Tri ${info.renderTriangles} Geo ${info.renderGeometries} Tex ${info.renderTextures}`,
       `Town GLB ${info.townAssetsLoaded}/9${info.townAssetsLoading ? ' loading' : ''} Fail ${info.townAssetsFailed}`,
+      `Camera ${info.cameraMode}${info.cameraPreset ? ` ${info.cameraPreset}` : ''}`,
+      `Weather ${info.weatherMode} Part ${info.weatherParticles}`,
       `State ${info.battle.phase}`,
       `Dialogue ${info.dialogueActive ? 'open' : 'closed'}`,
       `Pos ${info.playerX.toFixed(1)}, ${info.playerZ.toFixed(1)}`,
       `Enemy HP ${info.battle.enemy.hp}/${info.battle.enemy.maxHp} ATB ${Math.round(info.battle.enemy.atb)}`,
+      `Enemy Art ${info.enemyVisual}`,
       `Boss ${info.bossMode ? 'on' : 'off'}`,
       `Audio ${info.audioStatus}`,
       ...partyLines,
@@ -143,6 +189,16 @@ export class DebugPanel {
       option.textContent = `${hero.name} - ${hero.role}`;
       option.selected = hero.id === this.selectedHeroId;
       this.heroSelect.append(option);
+    });
+  }
+
+  private renderPoseSelector(poses: DebugPoseOption[]): void {
+    this.poseSelect.innerHTML = '';
+    poses.forEach((pose) => {
+      const option = document.createElement('option');
+      option.value = pose.id;
+      option.textContent = pose.label;
+      this.poseSelect.append(option);
     });
   }
 

@@ -5,3 +5,4 @@ playwright-report/
 .vite/
 *.local
 tools/meshy/logs/
+public/assets/**/*.zip

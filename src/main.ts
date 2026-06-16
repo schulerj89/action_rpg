@@ -21,6 +21,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 
   <div class="cinematic-darkener" data-testid="cinematic-darkener"></div>
   <div class="cinematic-flash" data-testid="cinematic-flash"></div>
+  <div class="qa-caption" data-testid="qa-caption" hidden></div>
   <div class="move-banner" data-testid="move-banner" hidden></div>
   <section class="dialogue-box" data-testid="dialogue-box" hidden>
     <strong data-testid="dialogue-speaker">Villager</strong>
@@ -37,6 +38,27 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     </div>
     <strong data-testid="victory-xp">+0 XP</strong>
     <span data-testid="victory-total-xp">0 total XP</span>
+  </section>
+
+  <section class="opening-caption" data-testid="opening-caption" hidden>
+    <strong>Aetherwake</strong>
+    <span data-testid="opening-caption-text">Ryuji reaches the town as the first storm breaks.</span>
+  </section>
+
+  <section class="game-menu" data-testid="game-menu" hidden>
+    <div class="game-menu-shell">
+      <header>
+        <strong>Aetherwake</strong>
+        <button type="button" class="ghost" data-testid="menu-close">Close</button>
+      </header>
+      <nav class="game-menu-tabs">
+        <button type="button" data-menu-tab="stats" data-testid="menu-tab-stats">Stats</button>
+        <button type="button" data-menu-tab="equipment" data-testid="menu-tab-equipment">Equipment</button>
+        <button type="button" data-menu-tab="party" data-testid="menu-tab-party">Party</button>
+        <button type="button" data-menu-tab="help" data-testid="menu-tab-help">Help</button>
+      </nav>
+      <div class="game-menu-content" data-testid="menu-content"></div>
+    </div>
   </section>
 
   <section class="game-over-screen" data-testid="game-over-screen" hidden>
@@ -98,6 +120,21 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <button type="button" data-testid="debug-force-ready">Ready</button>
       <button type="button" data-testid="debug-test-faint">Faint</button>
     </div>
+    <div class="debug-commands debug-commands-wide">
+      <button type="button" data-testid="debug-free-camera">Free Cam</button>
+      <button type="button" data-testid="debug-collision">Collision</button>
+      <button type="button" data-testid="debug-weather">Weather</button>
+    </div>
+    <label class="debug-select debug-pose-picker">
+      <span>Pose</span>
+      <select data-testid="debug-pose-select"></select>
+    </label>
+    <div class="debug-commands debug-commands-wide">
+      <button type="button" data-testid="debug-teleport-pose">Teleport</button>
+      <button type="button" data-testid="debug-camera-pose">Camera</button>
+      <button type="button" data-testid="debug-opening-cinematic">Cinematic</button>
+    </div>
+    <button type="button" class="ghost debug-menu-button" data-testid="debug-open-menu">Menu</button>
     <label class="debug-toggle">
       <input type="checkbox" data-testid="debug-boss-mode" />
       <span>Boss mode</span>

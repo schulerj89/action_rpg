@@ -215,6 +215,21 @@ export class HeroCharacter {
     });
   }
 
+  getAttachmentTipWorldPosition(id: string, target: Vector3): Vector3 {
+    const attachment = this.attachmentDebugObjects.find((candidate) => candidate.id === id);
+    if (!attachment) {
+      return target.copy(this.root.position).setY(1.2);
+    }
+
+    this.bounds.setFromObject(attachment.object);
+    target.set(
+      (this.bounds.min.x + this.bounds.max.x) / 2,
+      this.bounds.max.y,
+      (this.bounds.min.z + this.bounds.max.z) / 2,
+    );
+    return target;
+  }
+
   private async attachProp(loader: GLTFLoader, config: HeroAttachmentConfig): Promise<void> {
     const bone = this.bones.get(config.boneName);
     if (!bone) {

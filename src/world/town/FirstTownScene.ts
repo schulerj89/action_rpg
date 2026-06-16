@@ -6,6 +6,7 @@ import {
   firstTownBattleTrigger,
   firstTownBuildings,
   firstTownColliders,
+  firstTownDebugPoses,
   firstTownDetailAssets,
   firstTownGroundAssets,
   firstTownNpcs,
@@ -13,11 +14,13 @@ import {
   firstTownSceneId,
   firstTownSpawn,
   firstTownWallSegments,
+  type TownDebugPose,
   type TownAssetPlacement,
 } from './firstTownLayout';
 import { TownAssetSystem, type TownAssetSystemSnapshot } from './TownAssetSystem';
 import {
   createBattleTriggerPad,
+  createCollisionOverlay,
   createGrassField,
   createTownBuilding,
   createTownGround,
@@ -34,6 +37,7 @@ export class FirstTownScene {
   readonly spawn = firstTownSpawn.clone();
 
   private readonly combatHiddenRoot = new Group();
+  private readonly collisionOverlayRoot = createCollisionOverlay(firstTownColliders);
   private readonly assetSystem = new TownAssetSystem(firstTownAssetDefinitions);
   private readonly collision = new CollisionResolver(firstTownColliders);
   private readonly fallbackRoots = new Map<string, Group>();
@@ -43,7 +47,7 @@ export class FirstTownScene {
   constructor() {
     this.root.name = 'first-town';
     this.combatHiddenRoot.name = 'first-town-combat-hidden';
-    this.root.add(createTownGround(), createGrassField(), this.combatHiddenRoot);
+    this.root.add(createTownGround(), createGrassField(), this.combatHiddenRoot, this.collisionOverlayRoot);
     this.addFallback('town-well', createTownWell(), this.combatHiddenRoot);
 
     firstTownBuildings.forEach((building) => {
@@ -111,6 +115,29 @@ export class FirstTownScene {
     return firstTownNpcs.map((npc) => npc.dialogueId);
   }
 
+  getDebugPoses(): TownDebugPose[] {
+    return firstTownDebugPoses.map((pose) => ({
+      ...pose,
+      camera: pose.camera.clone(),
+      lookAt: pose.lookAt.clone(),
+      player: pose.player.clone(),
+    }));
+  }
+
+  getDebugPose(id: string): TownDebugPose | undefined {
+    const pose = firstTownDebugPoses.find((candidate) => candidate.id === id);
+    if (!pose) {
+      return undefined;
+    }
+
+    return {
+      ...pose,
+      camera: pose.camera.clone(),
+      lookAt: pose.lookAt.clone(),
+      player: pose.player.clone(),
+    };
+  }
+
   getLoadedMeshyProps(): string[] {
     return this.assetSystem.getLoadedAssetIds();
   }
@@ -129,6 +156,14 @@ export class FirstTownScene {
 
   areCombatOccludersVisible(): boolean {
     return this.combatHiddenRoot.visible;
+  }
+
+  setCollisionOverlay(enabled: boolean): void {
+    this.collisionOverlayRoot.visible = enabled;
+  }
+
+  isCollisionOverlayVisible(): boolean {
+    return this.collisionOverlayRoot.visible;
   }
 
   private addGroundAssets(): void {
@@ -153,20 +188,10 @@ export class FirstTownScene {
   }
 
   private addNpcAssets(): void {
+    // The first generated villager asset has unreliable face/eye detail when cloned.
+    // Keep it loaded for budget tracking, but use unique primitive NPCs until per-role models are generated.
     firstTownNpcs.forEach((npc) => {
-      const model = this.assetSystem.createInstance(npc.assetId, {
-        name: `${npc.id}-meshy`,
-        position: npc.position,
-        rotationY: npc.rotationY,
-        targetHeight: 1.55,
-      });
-      if (!model) {
-        return;
-      }
-
-      this.hideFallback(npc.id);
-      this.npcRoots.set(npc.dialogueId, model);
-      this.combatHiddenRoot.add(model);
+      this.assetSystem.markReferenced(npc.assetId);
     });
   }
 

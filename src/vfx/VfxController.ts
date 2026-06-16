@@ -1,6 +1,7 @@
 import {
   AdditiveBlending,
   BufferGeometry,
+  CatmullRomCurve3,
   Color,
   Float32BufferAttribute,
   Group,
@@ -11,6 +12,7 @@ import {
   PointLight,
   RingGeometry,
   SphereGeometry,
+  TubeGeometry,
   Vector3,
 } from 'three';
 import { tweenVector3 } from '../core/tween';
@@ -48,6 +50,8 @@ export class VfxController {
   private readonly thunderLight = new PointLight('#9ee8ff', 0, 8);
   private readonly thunderLines: Line[] = [];
   private readonly thunderMaterials: LineBasicMaterial[] = [];
+  private readonly thunderTubeMaterials: MeshBasicMaterial[] = [];
+  private readonly thunderTubes: Mesh[] = [];
   private auraStyle: AuraStyle = 'chi';
   private auraActive = false;
   private footChargeActive = false;
@@ -127,14 +131,20 @@ export class VfxController {
 
     if (this.thunderTimer > 0) {
       this.thunderTimer -= deltaSeconds;
-      const progress = Math.max(this.thunderTimer / 0.42, 0);
+      const progress = Math.max(this.thunderTimer / 0.82, 0);
       this.thunderLight.intensity = progress * 8.4;
       this.thunderMaterials.forEach((material, index) => {
         material.opacity = progress * (index === 0 ? 0.95 : 0.58);
       });
+      this.thunderTubeMaterials.forEach((material, index) => {
+        material.opacity = progress * (index === 0 ? 0.78 : 0.48);
+      });
       if (this.thunderTimer <= 0) {
         this.thunder.visible = false;
         this.thunderLight.intensity = 0;
+        this.thunderTubeMaterials.forEach((material) => {
+          material.opacity = 0;
+        });
       }
     }
   }
@@ -192,16 +202,47 @@ export class VfxController {
     this.arcaneBurstAt(end);
   }
 
+  healingBloomAt(position: Vector3): void {
+    const bloom = position.clone().setY(1.05);
+    this.burstAt(bloom, '#eafff2');
+    this.sigil.position.copy(position).setY(0.06);
+    this.sigil.scale.setScalar(0.8);
+    this.sigil.visible = true;
+    this.sigilTimer = 0.72;
+    this.sigilMaterials.forEach((material, index) => {
+      material.color.set(index === 1 ? '#86efac' : '#f8fff8');
+      material.opacity = 0.68;
+    });
+  }
+
+  snapshot(): { activeEffects: string[]; activeLights: number } {
+    const activeEffects = [
+      this.auraActive ? `aura:${this.auraStyle}` : '',
+      this.footChargeActive ? 'footCharge' : '',
+      this.burstTimer > 0 ? 'burst' : '',
+      this.sigilTimer > 0 ? 'sigil' : '',
+      this.thunderTimer > 0 ? 'thunder' : '',
+      this.spellOrb.visible ? 'spellOrb' : '',
+    ].filter(Boolean);
+
+    return {
+      activeEffects,
+      activeLights: [this.auraLight, this.footChargeLight, this.thunderLight].filter((light) => light.intensity > 0.1)
+        .length,
+    };
+  }
+
   private thunderStrike(start: Vector3, end: Vector3): void {
     this.thunder.position.set(0, 0, 0);
     this.thunder.visible = true;
-    this.thunderTimer = 0.42;
+    this.thunderTimer = 0.82;
     this.thunderLight.position.copy(end).setY(1.6);
     this.thunderLight.intensity = 8.4;
 
     this.thunderLines.forEach((line, lineIndex) => {
       line.geometry.dispose();
       const points: number[] = [];
+      const curvePoints: Vector3[] = [];
       const segments = 8;
       const side = new Vector3(lineIndex === 1 ? 0.18 : lineIndex === 2 ? -0.18 : 0, 0, lineIndex === 1 ? -0.12 : 0.12);
       for (let index = 0; index <= segments; index += 1) {
@@ -211,10 +252,17 @@ export class VfxController {
         point.x += side.x * t + jitter * (lineIndex + 1) * 0.24;
         point.z += side.z * t + Math.cos((index + 3) * 1.67 + lineIndex) * 0.12;
         points.push(point.x, point.y, point.z);
+        curvePoints.push(point);
       }
       const geometry = new BufferGeometry();
       geometry.setAttribute('position', new Float32BufferAttribute(points, 3));
       line.geometry = geometry;
+
+      const tube = this.thunderTubes[lineIndex];
+      if (tube) {
+        tube.geometry.dispose();
+        tube.geometry = new TubeGeometry(new CatmullRomCurve3(curvePoints), 18, lineIndex === 0 ? 0.045 : 0.028, 6, false);
+      }
     });
   }
 
@@ -310,7 +358,17 @@ export class VfxController {
       const line = new Line(new BufferGeometry(), material);
       this.thunderMaterials.push(material);
       this.thunderLines.push(line);
-      this.thunder.add(line);
+      const tubeMaterial = new MeshBasicMaterial({
+        color: index === 0 ? '#f8fafc' : '#60a5fa',
+        transparent: true,
+        opacity: 0,
+        blending: AdditiveBlending,
+        depthWrite: false,
+      });
+      const tube = new Mesh(new TubeGeometry(new CatmullRomCurve3([new Vector3(), new Vector3(0, 1, 0)]), 1, 0.02, 6), tubeMaterial);
+      this.thunderTubeMaterials.push(tubeMaterial);
+      this.thunderTubes.push(tube);
+      this.thunder.add(line, tube);
     }
     this.thunder.add(this.thunderLight);
     this.thunder.visible = false;

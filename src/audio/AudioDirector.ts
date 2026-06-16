@@ -12,12 +12,14 @@ import {
   levelUpSfxAsset,
   punchImpactSfxAsset,
   titleMusicAsset,
+  townMusicAsset,
   victoryMusicAsset,
 } from '../config/assets';
 import type { PhysicalMoveId } from '../core/types';
 
 export class AudioDirector {
   private readonly titleMusic = new Audio(titleMusicAsset.url);
+  private readonly townMusic = new Audio(townMusicAsset.url);
   private readonly battleMusic = new Audio(battleMusicAsset.url);
   private readonly bossMusic = new Audio(bossMusicAsset.url);
   private readonly victoryMusic = new Audio(victoryMusicAsset.url);
@@ -38,6 +40,7 @@ export class AudioDirector {
 
   constructor() {
     this.configureTrack(this.titleMusic, true, 0.42);
+    this.configureTrack(this.townMusic, true, 0.34);
     this.configureTrack(this.battleMusic, true, 0.38);
     this.configureTrack(this.bossMusic, true, 0.42);
     this.configureTrack(this.victoryMusic, false, 0.56);
@@ -64,9 +67,20 @@ export class AudioDirector {
     this.playTrack(this.titleMusic, 'title music');
   }
 
+  playTown(): void {
+    this.playTrack(this.townMusic, 'town music');
+  }
+
   stopTitle(): void {
     this.stopTrack(this.titleMusic);
     if (this.pendingTrack === this.titleMusic) {
+      this.pendingTrack = undefined;
+    }
+  }
+
+  stopTown(): void {
+    this.stopTrack(this.townMusic);
+    if (this.pendingTrack === this.townMusic) {
       this.pendingTrack = undefined;
     }
   }
@@ -227,9 +241,11 @@ export class AudioDirector {
   }
 
   private stopAllTracks(): void {
-    [this.titleMusic, this.battleMusic, this.bossMusic, this.victoryMusic, this.gameOverMusic].forEach((track) => {
-      this.stopTrack(track);
-    });
+    [this.titleMusic, this.townMusic, this.battleMusic, this.bossMusic, this.victoryMusic, this.gameOverMusic].forEach(
+      (track) => {
+        this.stopTrack(track);
+      },
+    );
   }
 
   private stopTrack(track: HTMLAudioElement): void {

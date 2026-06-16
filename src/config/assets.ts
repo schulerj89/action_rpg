@@ -29,7 +29,7 @@ export const mageHeroAnimationAssets: Partial<Record<HeroAnimationKey, string>> 
   chi: `${mageHeroBase}mage_soell_cast_3_withSkin.glb`,
   mageCast7: `${mageHeroBase}mage_soell_cast_7_withSkin.glb`,
   slam: `${mageHeroBase}Charged_Ground_Slam_withSkin.glb`,
-  victory: `${mageHeroBase}mage_soell_cast_6_withSkin.glb`,
+  victory: '/assets/hero/mage/Meshy_AI_Animation_Jazz_Hands_inplace_withSkin.glb',
 };
 
 export const mageStaffAsset = {
@@ -54,6 +54,14 @@ export const bossMusicAsset = {
 };
 
 export const titleMusicAsset = {
+  title: 'A New Town (RPG Theme)',
+  url: '/assets/audio/cynicmusic-a-new-town.mp3',
+  sourceUrl: 'https://opengameart.org/content/a-new-town-rpg-theme',
+  author: 'cynicmusic',
+  license: 'CC0',
+};
+
+export const townMusicAsset = {
   title: 'A New Town (RPG Theme)',
   url: '/assets/audio/cynicmusic-a-new-town.mp3',
   sourceUrl: 'https://opengameart.org/content/a-new-town-rpg-theme',

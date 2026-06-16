@@ -11,12 +11,14 @@ import {
 } from './config/heroes';
 import { FrameStats } from './core/FrameStats';
 import { InputController } from './core/InputController';
+import { wait } from './core/tween';
 import type { RuntimeDebugInfo } from './core/types';
 import { EnemyShape } from './entities/EnemyShape';
 import { HeroCharacter } from './entities/HeroCharacter';
 import { BattleHud } from './ui/BattleHud';
 import { DebugPanel } from './ui/DebugPanel';
 import { DialogueBox } from './ui/DialogueBox';
+import { GameMenu } from './ui/GameMenu';
 import { TitleScreen } from './ui/TitleScreen';
 import { VfxController } from './vfx/VfxController';
 import { CameraRig } from './world/CameraRig';
@@ -25,6 +27,7 @@ import { DialogueRepository, type SceneDialogue } from './world/dialogue/Dialogu
 import { createWorldScene } from './world/SceneFactory';
 import type { WorldScene } from './world/SceneFactory';
 import { FirstTownScene } from './world/town/FirstTownScene';
+import { WeatherSystem } from './world/WeatherSystem';
 
 const playerMoveSpeed = 4.2;
 const explorationAcceleration = 18;
@@ -44,6 +47,7 @@ export class GameApp {
   private readonly sceneDialogue: SceneDialogue;
   private readonly enemy: EnemyShape;
   private readonly frameStats = new FrameStats();
+  private readonly gameMenu: GameMenu;
   private readonly hero: HeroCharacter;
   private readonly hud: BattleHud;
   private readonly input = new InputController();
@@ -62,8 +66,16 @@ export class GameApp {
   private readonly proposedHeroPosition = new Vector3();
   private readonly trigger: EncounterTrigger;
   private readonly vfx = new VfxController();
+  private readonly weather: WeatherSystem;
   private readonly world: WorldScene;
+  private readonly openingCaption: HTMLElement;
+  private readonly openingCaptionText: HTMLElement;
+  private readonly qaCaption: HTMLElement;
   private reverseTurnTargetYaw?: number;
+  private cinematicActive = false;
+  private enemyAssetsLoading = false;
+  private openingCinematicPlayed = false;
+  private qaCaptureMode = false;
   private townAssetsLoading = false;
   private townCombatMode = false;
   private lastFrameTime = performance.now();
@@ -79,9 +91,20 @@ export class GameApp {
     this.town = new FirstTownScene();
     this.sceneDialogue = sceneDialogue;
     this.hero = hero;
+    const openingCaption = document.querySelector<HTMLElement>('[data-testid="opening-caption"]');
+    const openingCaptionText = document.querySelector<HTMLElement>('[data-testid="opening-caption-text"]');
+    const qaCaption = document.querySelector<HTMLElement>('[data-testid="qa-caption"]');
+    if (!openingCaption || !openingCaptionText || !qaCaption) {
+      throw new Error('Opening cinematic markup is missing.');
+    }
+    this.openingCaption = openingCaption;
+    this.openingCaptionText = openingCaptionText;
+    this.qaCaption = qaCaption;
     this.hud = new BattleHud(document);
+    this.gameMenu = new GameMenu(document);
     this.dialogueBox = new DialogueBox(document);
-    this.cameraRig = new CameraRig(this.world.camera);
+    this.cameraRig = new CameraRig(this.world.camera, this.canvas);
+    this.weather = new WeatherSystem(this.world.scene);
     this.enemy = new EnemyShape();
     this.supportHeroes = supportHeroes;
     this.trigger = new EncounterTrigger(this.town.battleTriggerPosition, 1.35, this.town.battleTriggerPad);
@@ -95,7 +118,19 @@ export class GameApp {
       trigger: this.trigger,
       vfx: this.vfx,
     });
-    this.debugPanel = new DebugPanel(document, this.battle.getPartyDebugOptions(), moveDebugOptions, false, {
+    this.debugPanel = new DebugPanel(
+      document,
+      this.battle.getPartyDebugOptions(),
+      moveDebugOptions,
+      this.town.getDebugPoses().map((pose) => ({ id: pose.id, label: pose.label })),
+      false,
+      {
+      onCameraPose: (poseId) => {
+        this.applyDebugPose(poseId, { cameraOnly: true });
+      },
+      onCollisionOverlayToggle: () => {
+        this.town.setCollisionOverlay(!this.town.isCollisionOverlayVisible());
+      },
       onBossModeChange: (enabled) => {
         this.battle.setBossMode(enabled);
       },
@@ -104,6 +139,15 @@ export class GameApp {
       },
       onForceReady: (heroId) => {
         this.battle.forceReady(heroId);
+      },
+      onFreeCameraToggle: () => {
+        this.toggleFreeCamera();
+      },
+      onMenuToggle: () => {
+        this.gameMenu.toggle();
+      },
+      onOpeningCinematic: () => {
+        void this.playOpeningCinematic(true);
       },
       onStartBattle: () => {
         void this.battle.startBattle();
@@ -117,14 +161,32 @@ export class GameApp {
       onTestFaint: () => {
         void this.battle.testGameOver();
       },
-    });
+      onTeleportPose: (poseId) => {
+        this.applyDebugPose(poseId, { teleportOnly: true });
+      },
+      onWeatherCycle: () => {
+        this.weather.cycle();
+      },
+    },
+    );
     this.titleScreen = new TitleScreen(document, {
       onStart: () => {
         this.audio.stopTitle();
+        this.audio.playTown();
+        if (!this.openingCinematicPlayed) {
+          void this.playOpeningCinematic(false);
+        }
       },
     });
 
-    this.world.scene.add(this.town.root, this.hero.root, this.enemy.root, this.vfx.root, ...this.getSupportHeroRoots());
+    this.world.scene.add(
+      this.town.root,
+      this.weather.root,
+      this.hero.root,
+      this.enemy.root,
+      this.vfx.root,
+      ...this.getSupportHeroRoots(),
+    );
     this.hero.root.position.copy(this.town.spawn);
     this.hero.root.rotation.y = Math.PI;
     this.enemy.root.visible = false;
@@ -132,7 +194,13 @@ export class GameApp {
     this.updateSupportHeroVisibility();
     this.installResizeHandler();
     this.installInteractionHandler();
+    this.installGlobalShortcuts();
     this.installTestApi();
+    window.addEventListener('rpg:reset', () => {
+      if (!this.titleScreen.isActive()) {
+        this.audio.playTown();
+      }
+    });
     this.audio.playTitle();
   }
 
@@ -151,6 +219,7 @@ export class GameApp {
     const app = new GameApp(canvas, hero, new Map(supportEntries), sceneDialogue);
     app.start();
     void app.loadSceneAssets();
+    void app.loadEnemyAssets();
     return app;
   }
 
@@ -160,6 +229,15 @@ export class GameApp {
       await this.town.loadMeshyProps();
     } finally {
       this.townAssetsLoading = false;
+    }
+  }
+
+  private async loadEnemyAssets(): Promise<void> {
+    this.enemyAssetsLoading = true;
+    try {
+      await this.enemy.loadGeneratedAssets();
+    } finally {
+      this.enemyAssetsLoading = false;
     }
   }
 
@@ -175,6 +253,7 @@ export class GameApp {
     this.frameStats.update(deltaSeconds);
 
     this.town.update(deltaSeconds);
+    this.weather.update(deltaSeconds);
     this.updateWorld(deltaSeconds);
     this.hero.update(deltaSeconds);
     this.supportHeroes.forEach((supportHero) => {
@@ -205,6 +284,18 @@ export class GameApp {
       return;
     }
 
+    if (this.cinematicActive || this.gameMenu.isActive()) {
+      this.explorationVelocity.set(0, 0, 0);
+      this.hero.play('explorationIdle');
+      if (this.cameraRig.getMode() === 'free') {
+        this.cameraRig.updateFreeCamera(this.input.getFreeCameraAxes(), deltaSeconds);
+      } else {
+        this.cameraRig.updateExploration(this.hero.root.position, this.heroForward, deltaSeconds);
+      }
+      this.updateSupportHeroes(deltaSeconds, true);
+      return;
+    }
+
     if (this.dialogueBox.isActive()) {
       this.explorationVelocity.set(0, 0, 0);
       this.hero.play('explorationIdle');
@@ -214,6 +305,14 @@ export class GameApp {
     }
 
     if (this.battle.getPhase() === 'exploration') {
+      if (this.cameraRig.getMode() === 'free') {
+        this.explorationVelocity.set(0, 0, 0);
+        this.hero.play('explorationIdle');
+        this.cameraRig.updateFreeCamera(this.input.getFreeCameraAxes(), deltaSeconds);
+        this.updateSupportHeroes(deltaSeconds, true);
+        return;
+      }
+
       const input = this.input.getMovementAxes();
       if (input.turn !== 0) {
         this.hero.root.rotation.y -= input.turn * explorationPivotTurnSpeed * deltaSeconds;
@@ -408,6 +507,9 @@ export class GameApp {
   private updateDebug(): void {
     const battle = this.battle.snapshot();
     const townAssetInfo = this.town.getAssetSnapshot();
+    const cameraInfo = this.cameraRig.snapshot();
+    const weatherInfo = this.weather.snapshot();
+    this.gameMenu.update(battle);
     const info: RuntimeDebugInfo = {
       fps: this.frameStats.fps,
       frameMs: this.frameStats.frameMs,
@@ -416,7 +518,10 @@ export class GameApp {
       battle,
       bossMode: this.battle.isBossMode(),
       audioStatus: this.audio.getStatus(),
+      cameraMode: cameraInfo.mode,
+      cameraPreset: cameraInfo.preset,
       dialogueActive: this.dialogueBox.isActive(),
+      enemyVisual: this.enemy.getVisualState().modelId ?? (this.enemyAssetsLoading ? 'loading' : 'fallback'),
       renderCalls: this.world.renderer.info.render.calls,
       renderGeometries: this.world.renderer.info.memory.geometries,
       renderTextures: this.world.renderer.info.memory.textures,
@@ -425,9 +530,12 @@ export class GameApp {
       townAssetsFailed: townAssetInfo.failed.length,
       townAssetsLoaded: townAssetInfo.loaded.length,
       townAssetsLoading: this.townAssetsLoading,
+      weatherMode: weatherInfo.mode,
+      weatherParticles: weatherInfo.particleCount,
     };
 
     this.debugPanel.update(info);
+    this.updateQaCaption(info);
   }
 
   private installResizeHandler(): void {
@@ -464,6 +572,31 @@ export class GameApp {
     });
   }
 
+  private installGlobalShortcuts(): void {
+    window.addEventListener('keydown', (event) => {
+      if (event.repeat) {
+        return;
+      }
+
+      if (event.code === 'ShiftRight') {
+        event.preventDefault();
+        this.toggleFreeCamera();
+        return;
+      }
+
+      if (event.code === 'KeyM' && !this.titleScreen.isActive()) {
+        event.preventDefault();
+        this.gameMenu.toggle();
+        return;
+      }
+
+      if (event.code === 'Escape' && this.gameMenu.isActive()) {
+        event.preventDefault();
+        this.gameMenu.hide();
+      }
+    });
+  }
+
   private openNearestDialogue(): boolean {
     const interaction = this.town.findNearestInteraction(this.hero.root.position);
     if (!interaction) {
@@ -475,6 +608,112 @@ export class GameApp {
 
   private openDialogue(npcId: string): boolean {
     return this.dialogueBox.show(this.sceneDialogue, npcId);
+  }
+
+  private applyDebugPose(
+    poseId: string,
+    options: { cameraOnly?: boolean; teleportOnly?: boolean } = {},
+  ): boolean {
+    const pose = this.town.getDebugPose(poseId);
+    if (!pose) {
+      return false;
+    }
+
+    this.town.setCollisionOverlay(Boolean(pose.collisionOverlay));
+    if (!options.cameraOnly) {
+      this.hero.root.position.copy(pose.player);
+      this.hero.root.rotation.y = pose.yaw;
+      setYawForward(this.hero.root.rotation.y, this.heroForward);
+      this.explorationVelocity.set(0, 0, 0);
+      this.updateSupportHeroes(0.016, true);
+    }
+
+    if (!options.teleportOnly) {
+      this.cameraRig.setDebugPose(pose.camera, pose.lookAt, pose.fov, pose.id);
+    }
+
+    if (poseId.startsWith('battle.') && this.battle.getPhase() === 'exploration') {
+      void this.battle.startBattle().then(() => {
+        if (!options.teleportOnly) {
+          this.cameraRig.setDebugPose(pose.camera, pose.lookAt, pose.fov, pose.id);
+        }
+      });
+    }
+
+    return true;
+  }
+
+  private setQaCaptureMode(enabled: boolean): void {
+    this.qaCaptureMode = enabled;
+    this.qaCaption.hidden = !enabled;
+    document.body.classList.toggle('qa-capture-mode', enabled);
+  }
+
+  private updateQaCaption(info: RuntimeDebugInfo): void {
+    if (!this.qaCaptureMode) {
+      return;
+    }
+
+    this.qaCaption.textContent = [
+      `FPS ${info.fps.toFixed(0)}`,
+      `Draws ${info.renderCalls}`,
+      `Tri ${info.renderTriangles}`,
+      `Pose ${info.cameraPreset ?? info.cameraMode}`,
+      `Weather ${info.weatherMode}`,
+      `Enemy ${info.enemyVisual}`,
+    ].join(' | ');
+  }
+
+  private toggleFreeCamera(): void {
+    const enabled = this.cameraRig.getMode() !== 'free';
+    this.cameraRig.setFreeCamera(enabled);
+    if (!enabled) {
+      this.town.setCollisionOverlay(false);
+    }
+  }
+
+  private async playOpeningCinematic(fromDebug: boolean): Promise<void> {
+    if (this.cinematicActive) {
+      return;
+    }
+
+    this.openingCinematicPlayed = true;
+    this.cinematicActive = true;
+    this.gameMenu.hide();
+    this.dialogueBox.hide();
+    this.town.setCollisionOverlay(false);
+    this.weather.setMode('mist');
+    if (fromDebug && this.battle.getPhase() !== 'exploration') {
+      this.battle.resetEncounter();
+      await wait(120);
+    }
+
+    this.hero.root.position.set(2.1, 0, 5.15);
+    this.hero.root.rotation.y = Math.PI;
+    setYawForward(this.hero.root.rotation.y, this.heroForward);
+    this.openingCaption.hidden = false;
+    this.openingCaptionText.textContent = 'Ryuji reaches the square as Pip stumbles near the well.';
+    this.cameraRig.setDebugPose(new Vector3(3.8, 2.15, 7.35), new Vector3(2.6, 1.05, 3.8), 43, 'opening.helping-pip');
+    this.hero.play('run', { fadeSeconds: 0.08 });
+    await wait(900);
+
+    this.hero.play('chi', { loopOnce: true, fadeSeconds: 0.08, timeScale: 0.85 });
+    this.vfx.setAura(true, 'healing');
+    this.vfx.healingBloomAt(new Vector3(3.15, 0, 3.55));
+    this.audio.playHealing();
+    this.openingCaptionText.textContent = 'A quiet pulse steadies him before the storm can take hold.';
+    await wait(1450);
+
+    this.vfx.setAura(false);
+    this.hero.play('explorationIdle');
+    this.openingCaptionText.textContent = 'The north gate glows. The first battle waits beyond town.';
+    this.cameraRig.setDebugPose(new Vector3(0, 4.2, -8.4), new Vector3(0, 1.2, -16.9), 46, 'opening.north-gate');
+    await wait(1350);
+
+    this.openingCaption.hidden = true;
+    this.weather.setMode('clear');
+    this.cameraRig.setExploration();
+    this.cinematicActive = false;
   }
 
   private installTestApi(): void {
@@ -496,13 +735,22 @@ export class GameApp {
       },
       getState: () => {
         const snapshot = this.battle.snapshot();
+        const cameraInfo = this.cameraRig.snapshot();
+        const weatherInfo = this.weather.snapshot();
         return {
           audioStatus: this.audio.getStatus(),
           battleState: this.battle.getPhase(),
           bossMode: this.battle.isBossMode(),
+          cameraInfo,
+          collisionOverlay: this.town.isCollisionOverlayVisible(),
+          debugPoses: this.town.getDebugPoses().map((pose) => ({ id: pose.id, label: pose.label })),
           dialogueActive: this.dialogueBox.isActive(),
           dialogueSpeaker: this.dialogueBox.getCurrentNpcName(),
           enemyHp: this.battle.enemyCombatant.hp,
+          enemyVisual: {
+            loading: this.enemyAssetsLoading,
+            ...this.enemy.getVisualState(),
+          },
           equippedMoves: this.battle.getEquippedMoves(),
           level: this.battle.getLevel(),
           meshyProps: this.town.getLoadedMeshyProps(),
@@ -539,6 +787,7 @@ export class GameApp {
             ...this.town.getAssetSnapshot(),
           },
           townOccludersVisible: this.town.areCombatOccludersVisible(),
+          vfxInfo: this.vfx.snapshot(),
           visualState: {
             attachments: {
               ryuji: this.hero.getAttachmentDebugState(),
@@ -548,6 +797,8 @@ export class GameApp {
             },
           },
           xpGained: this.battle.getXpGained(),
+          weatherInfo,
+          qaCaptureMode: this.qaCaptureMode,
         };
       },
       interactWithNpc: (npcId: string) => this.openDialogue(npcId),
@@ -576,8 +827,39 @@ export class GameApp {
       setPlayerPosition: (x: number, z: number) => {
         this.hero.root.position.set(x, 0, z);
       },
+      setCameraPose: (position, lookAt, fov) => {
+        this.cameraRig.setDebugPose(
+          new Vector3(position.x, position.y, position.z),
+          new Vector3(lookAt.x, lookAt.y, lookAt.z),
+          fov,
+          'api.custom',
+        );
+      },
+      setCollisionOverlay: (enabled: boolean) => {
+        this.town.setCollisionOverlay(enabled);
+      },
+      setDebugPose: (id, options) => this.applyDebugPose(id, options),
+      setFreeCamera: (enabled) => {
+        this.cameraRig.setFreeCamera(enabled);
+      },
+      setHeroYaw: (yaw) => {
+        this.hero.root.rotation.y = yaw;
+        setYawForward(this.hero.root.rotation.y, this.heroForward);
+      },
+      setQaCaptureMode: (enabled) => {
+        this.setQaCaptureMode(enabled);
+      },
       testGameOver: () => {
         void this.battle.testGameOver();
+      },
+      playOpeningCinematic: () => {
+        void this.playOpeningCinematic(true);
+      },
+      toggleMenu: () => {
+        this.gameMenu.toggle();
+      },
+      cycleWeather: () => {
+        this.weather.cycle();
       },
     };
   }

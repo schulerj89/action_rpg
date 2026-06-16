@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "assets:meshy-town": "node tools/meshy/generate-first-town-assets.mjs",
+    "assets:meshy-enemies": "node tools/meshy/generate-enemy-assets.mjs",
     "smoke": "playwright test",
     "smoke:headed": "playwright test --headed"
   },

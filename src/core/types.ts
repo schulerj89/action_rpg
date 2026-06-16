@@ -164,6 +164,9 @@ export interface RuntimeDebugInfo {
   bossMode: boolean;
   audioStatus: string;
   dialogueActive: boolean;
+  cameraMode: string;
+  cameraPreset?: string;
+  enemyVisual: string;
   renderCalls: number;
   renderGeometries: number;
   renderTextures: number;
@@ -172,6 +175,8 @@ export interface RuntimeDebugInfo {
   townAssetsFailed: number;
   townAssetsLoaded: number;
   townAssetsLoading: boolean;
+  weatherMode: string;
+  weatherParticles: number;
 }
 
 export interface RpgTestApi {
@@ -185,6 +190,11 @@ export interface RpgTestApi {
     bossMode: boolean;
     enemyHp: number;
     equippedMoves: MoveId[];
+    enemyVisual: {
+      loaded: string[];
+      loading: boolean;
+      modelId?: string;
+    };
     dialogueActive: boolean;
     dialogueSpeaker?: string;
     level: number;
@@ -205,6 +215,17 @@ export interface RpgTestApi {
     playerHp: number;
     playerChi: number;
     position: { x: number; z: number };
+    cameraInfo: {
+      fov: number;
+      mode: string;
+      position: { x: number; y: number; z: number };
+      preset?: string;
+    };
+    collisionOverlay: boolean;
+    debugPoses: Array<{
+      id: string;
+      label: string;
+    }>;
     renderInfo: {
       calls: number;
       geometries: number;
@@ -226,6 +247,10 @@ export interface RpgTestApi {
       }>;
     };
     townOccludersVisible: boolean;
+    vfxInfo: {
+      activeEffects: string[];
+      activeLights: number;
+    };
     visualState: {
       attachments: Record<
         string,
@@ -240,6 +265,12 @@ export interface RpgTestApi {
       >;
     };
     xpGained: number;
+    weatherInfo: {
+      mode: string;
+      particleCount: number;
+      sky: string;
+    };
+    qaCaptureMode: boolean;
   };
   forceEnemyReady: () => void;
   interactWithNpc: (npcId: string) => boolean;
@@ -250,8 +281,17 @@ export interface RpgTestApi {
   setHeroStat: (heroId: string, key: StatKey, value: number) => void;
   setPlayerHp: (value: number) => void;
   setPlayerPosition: (x: number, z: number) => void;
+  setCameraPose: (position: { x: number; y: number; z: number }, lookAt: { x: number; y: number; z: number }, fov?: number) => void;
+  setCollisionOverlay: (enabled: boolean) => void;
+  setDebugPose: (id: string, options?: { cameraOnly?: boolean; teleportOnly?: boolean }) => boolean;
+  setFreeCamera: (enabled: boolean) => void;
+  setHeroYaw: (yaw: number) => void;
+  setQaCaptureMode: (enabled: boolean) => void;
   setSupportHeroActive: (id: string, active: boolean) => void;
+  playOpeningCinematic: () => void;
+  toggleMenu: () => void;
   testGameOver: () => void;
+  cycleWeather: () => void;
 }
 
 declare global {

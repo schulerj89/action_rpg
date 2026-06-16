@@ -1,0 +1,26 @@
+{
+  "apiKeyFile": "C:/Users/joshs/Projects/meshy-api-key.txt",
+  "outputDir": "public/assets/enemies/first-town",
+  "metadataDir": "tools/meshy/generated/enemies/first-town",
+  "defaultModel": "meshy-6",
+  "defaultTargetFormats": ["glb"],
+  "maxAssetBytes": 12000000,
+  "assets": [
+    {
+      "id": "ember-prowler",
+      "fileName": "ember-prowler.glb",
+      "targetPolycount": 9000,
+      "decimationMode": 2,
+      "prompt": "stylized ultra-detail chibi fantasy RPG enemy creature, small ember prowler quadruped, fox-cat silhouette, flame-tipped tail, readable idle stance, game-ready, isolated, no text, no logo",
+      "texturePrompt": "warm ember orange fur, dark charcoal paws, glowing teal eyes, soft fantasy RPG painted texture, readable face, no letters, no logo"
+    },
+    {
+      "id": "shellback-guardian",
+      "fileName": "shellback-guardian.glb",
+      "targetPolycount": 14000,
+      "decimationMode": 2,
+      "prompt": "stylized ultra-detail chibi fantasy RPG boss creature, stout shellback guardian beast with stone shell, horned mask face, powerful idle stance, game-ready, isolated, no text, no logo",
+      "texturePrompt": "mossy gray stone shell, deep green body, amber horn accents, glowing purple eyes, clean fantasy RPG painted texture, no letters, no logo"
+    }
+  ]
+}

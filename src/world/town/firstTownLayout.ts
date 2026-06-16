@@ -39,70 +39,81 @@ export interface TownAssetPlacement {
   targetLongestSide?: number;
 }
 
+export interface TownDebugPose {
+  camera: Vector3;
+  collisionOverlay?: boolean;
+  fov?: number;
+  id: string;
+  label: string;
+  lookAt: Vector3;
+  player: Vector3;
+  yaw: number;
+}
+
 export const firstTownBuildings: TownBuildingLayout[] = [
   {
     accent: '#d8a03d',
     assetId: 'weapon-shop',
-    collider: { id: 'weapon-shop', minX: -11.9, maxX: -5.1, minZ: -10.4, maxZ: -4.0 },
+    collider: { id: 'weapon-shop', minX: -11.55, maxX: -5.45, minZ: -9.95, maxZ: -4.42 },
     id: 'weapon-shop',
     kind: 'weapons',
     position: new Vector3(-8.5, 0, -7.0),
     roof: '#9c3f32',
-    targetHeight: 4.2,
+    targetHeight: 5.35,
   },
   {
     accent: '#8b5cf6',
     assetId: 'potion-shop',
-    collider: { id: 'potion-shop', minX: 5.0, maxX: 12.0, minZ: -10.4, maxZ: -4.0 },
+    collider: { id: 'potion-shop', minX: 5.45, maxX: 11.55, minZ: -9.95, maxZ: -4.42 },
     id: 'potion-shop',
     kind: 'potions',
     position: new Vector3(8.4, 0, -7.0),
     roof: '#6147b7',
-    targetHeight: 4.2,
+    targetHeight: 5.35,
   },
   {
     accent: '#14b8a6',
     assetId: 'village-house',
-    collider: { id: 'northwest-house', minX: -15.4, maxX: -10.4, minZ: -1.2, maxZ: 3.9 },
+    collider: { id: 'northwest-house', minX: -15.0, maxX: -10.8, minZ: -0.75, maxZ: 3.55 },
     id: 'northwest-house',
     kind: 'house',
     position: new Vector3(-12.9, 0, 1.3),
     roof: '#0f766e',
     rotationY: -0.12,
-    targetHeight: 3.55,
+    targetHeight: 4.55,
   },
   {
     accent: '#0ea5e9',
     assetId: 'village-house',
-    collider: { id: 'northeast-house', minX: 10.3, maxX: 15.3, minZ: -1.1, maxZ: 4.0 },
+    collider: { id: 'northeast-house', minX: 10.7, maxX: 14.9, minZ: -0.72, maxZ: 3.6 },
     id: 'northeast-house',
     kind: 'house',
     position: new Vector3(12.8, 0, 1.4),
     roof: '#0369a1',
     rotationY: 0.16,
-    targetHeight: 3.5,
+    targetHeight: 4.5,
   },
   {
     accent: '#f59e0b',
     assetId: 'village-house',
-    collider: { id: 'southwest-house', minX: -10.1, maxX: -5.0, minZ: 5.5, maxZ: 10.8 },
+    collider: { id: 'southwest-house', minX: -9.7, maxX: -5.38, minZ: 5.95, maxZ: 10.35 },
     id: 'southwest-house',
     kind: 'house',
     position: new Vector3(-7.55, 0, 8.0),
     roof: '#b45309',
     rotationY: 0.08,
-    targetHeight: 3.35,
+    targetHeight: 4.38,
   },
   {
     accent: '#f472b6',
     assetId: 'village-house',
-    collider: { id: 'southeast-house', minX: 5.1, maxX: 10.2, minZ: 5.6, maxZ: 10.9 },
+    collider: { id: 'southeast-house', minX: 5.48, maxX: 9.82, minZ: 6.0, maxZ: 10.42 },
     id: 'southeast-house',
     kind: 'house',
     position: new Vector3(7.65, 0, 8.1),
     roof: '#be185d',
     rotationY: -0.08,
-    targetHeight: 3.35,
+    targetHeight: 4.38,
   },
 ];
 
@@ -215,9 +226,167 @@ export const firstTownWallSegments: TownAssetPlacement[] = [
 export const firstTownColliders: AabbCollider[] = [
   ...firstTownBuildings.map((building) => building.collider),
   { id: 'well', minX: -0.9, maxX: 0.9, minZ: -2.25, maxZ: -0.6 },
-  { id: 'north-wall-left', minX: -18.2, maxX: -2.8, minZ: -17.9, maxZ: -15.8 },
-  { id: 'north-wall-right', minX: 2.8, maxX: 18.2, minZ: -17.9, maxZ: -15.8 },
+  { id: 'north-wall-left', minX: -18.2, maxX: -4.35, minZ: -17.9, maxZ: -15.8 },
+  { id: 'north-wall-right', minX: 4.35, maxX: 18.2, minZ: -17.9, maxZ: -15.8 },
   { id: 'south-wall', minX: -18.2, maxX: 18.2, minZ: 13.1, maxZ: 15.0 },
   { id: 'west-wall', minX: -18.1, maxX: -15.9, minZ: -17.9, maxZ: 15.0 },
   { id: 'east-wall', minX: 15.9, maxX: 18.1, minZ: -17.9, maxZ: 15.0 },
+];
+
+const buildingFrontPoses = firstTownBuildings.flatMap((building) => {
+  const frontZ = building.collider.maxZ + 0.62;
+  const centerX = (building.collider.minX + building.collider.maxX) / 2;
+  const player = new Vector3(centerX, 0, frontZ);
+  const lookAt = building.position.clone().setY(1.65);
+  const isSouthHouse = building.id === 'southwest-house' || building.id === 'southeast-house';
+  const cameraFrontZ = isSouthHouse ? building.collider.minZ - 4.35 : frontZ + 4.5;
+  const cameraCollisionZ = isSouthHouse ? building.collider.minZ - 3.6 : frontZ + 3.65;
+  const collisionEdgeZ = isSouthHouse ? building.collider.minZ + 0.08 : frontZ - 0.1;
+  return [
+    {
+      id: `building.${building.id}.front`,
+      label: `${building.id} front`,
+      player,
+      yaw: isSouthHouse ? 0 : Math.PI,
+      camera: new Vector3(centerX, 2.25, cameraFrontZ),
+      lookAt,
+      fov: 48,
+    },
+    {
+      id: `building.${building.id}.collision`,
+      label: `${building.id} collision edge`,
+      player: new Vector3(centerX, 0, collisionEdgeZ),
+      yaw: isSouthHouse ? 0 : Math.PI,
+      camera: new Vector3(centerX + 2.15, 2.1, cameraCollisionZ),
+      lookAt: new Vector3(centerX, 0.75, isSouthHouse ? building.collider.minZ : building.collider.maxZ),
+      collisionOverlay: true,
+      fov: 46,
+    },
+  ] satisfies TownDebugPose[];
+});
+
+const wallPoses: TownDebugPose[] = [
+  {
+    id: 'wall.north.left_gate',
+    label: 'north gate left edge',
+    player: new Vector3(-4.55, 0, -16.72),
+    yaw: Math.PI,
+    camera: new Vector3(-0.8, 3.55, -10.4),
+    lookAt: new Vector3(-4.35, 0.9, -16.9),
+    collisionOverlay: true,
+    fov: 46,
+  },
+  {
+    id: 'wall.north.right_gate',
+    label: 'north gate right edge',
+    player: new Vector3(4.55, 0, -16.72),
+    yaw: Math.PI,
+    camera: new Vector3(0.8, 3.55, -10.4),
+    lookAt: new Vector3(4.35, 0.9, -16.9),
+    collisionOverlay: true,
+    fov: 46,
+  },
+  {
+    id: 'wall.corner.nw',
+    label: 'northwest wall corner',
+    player: new Vector3(-15.7, 0, -16.15),
+    yaw: Math.PI * 0.75,
+    camera: new Vector3(-11.2, 3.7, -11.1),
+    lookAt: new Vector3(-16.5, 0.9, -16.7),
+    collisionOverlay: true,
+    fov: 48,
+  },
+  {
+    id: 'wall.corner.ne',
+    label: 'northeast wall corner',
+    player: new Vector3(15.7, 0, -16.15),
+    yaw: -Math.PI * 0.75,
+    camera: new Vector3(11.2, 3.7, -11.1),
+    lookAt: new Vector3(16.5, 0.9, -16.7),
+    collisionOverlay: true,
+    fov: 48,
+  },
+  {
+    id: 'wall.corner.sw',
+    label: 'southwest wall corner',
+    player: new Vector3(-15.7, 0, 13.65),
+    yaw: Math.PI * 0.28,
+    camera: new Vector3(-11.2, 3.7, 9.1),
+    lookAt: new Vector3(-16.5, 0.9, 14.0),
+    collisionOverlay: true,
+    fov: 48,
+  },
+  {
+    id: 'wall.corner.se',
+    label: 'southeast wall corner',
+    player: new Vector3(15.7, 0, 13.65),
+    yaw: -Math.PI * 0.28,
+    camera: new Vector3(11.2, 3.7, 9.1),
+    lookAt: new Vector3(16.5, 0.9, 14.0),
+    collisionOverlay: true,
+    fov: 48,
+  },
+];
+
+const npcPoses = firstTownNpcs.flatMap((npc, index) => [
+  {
+    id: `npc.close.${npc.dialogueId}`,
+    label: `${npc.name} full-body`,
+    player: npc.position.clone().add(new Vector3(-2.7, 0, 1.75)),
+    yaw: -Math.PI * 0.35,
+    camera: npc.position.clone().add(new Vector3(2.35, 1.72, 3.05)),
+    lookAt: npc.position.clone().add(new Vector3(0, 0.9, 0)),
+    fov: 32,
+  },
+  {
+    id: `npc.line.${npc.dialogueId}`,
+    label: `${npc.name} lineup angle`,
+    player: new Vector3(-1.8 + index * 1.2, 0, 5.0),
+    yaw: Math.PI,
+    camera: new Vector3(0, 2.35, 7.1),
+    lookAt: new Vector3(0, 1.05, 2.45),
+    fov: 45,
+  },
+] satisfies TownDebugPose[]);
+
+export const firstTownDebugPoses: TownDebugPose[] = [
+  {
+    id: 'town.spawn.default',
+    label: 'spawn default',
+    player: firstTownSpawn.clone(),
+    yaw: Math.PI,
+    camera: new Vector3(0, 3.1, 12.6),
+    lookAt: new Vector3(0, 1.25, 7),
+    fov: 54,
+  },
+  {
+    id: 'town.north_gate.inside',
+    label: 'north gate inside',
+    player: new Vector3(0, 0, -14.2),
+    yaw: Math.PI,
+    camera: new Vector3(0, 3.1, -8.6),
+    lookAt: new Vector3(0, 1.25, -14.2),
+    fov: 50,
+  },
+  ...buildingFrontPoses,
+  ...wallPoses,
+  ...npcPoses,
+  {
+    id: 'battle.default.party',
+    label: 'battle party default',
+    player: firstTownBattleTrigger.clone(),
+    yaw: Math.PI,
+    camera: new Vector3(0, 3.05, -19.2),
+    lookAt: new Vector3(0, 1.2, -28.4),
+    fov: 50,
+  },
+  {
+    id: 'title.cinematic.gate',
+    label: 'title gate cinematic',
+    player: new Vector3(0, 0, -14.2),
+    yaw: Math.PI,
+    camera: new Vector3(0, 4.2, -8.4),
+    lookAt: new Vector3(0, 1.2, -16.9),
+    fov: 46,
+  },
 ];

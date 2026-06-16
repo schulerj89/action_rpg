@@ -25,6 +25,8 @@ Meshy preview tasks are geometry-only. Textures come from the refine task, so th
 
 The current town still builds primitive fallbacks first. Meshy props replace those fallbacks when they load, and town occluders are hidden during battle to keep camera readability high.
 
+The generic `villager-npc.glb` is intentionally loaded but not displayed right now. Browser screenshot QA showed its cloned face/eye detail was weaker than the primitive NPCs, so the town uses unique primitive NPC silhouettes and accessories until per-role NPC Meshy assets are generated.
+
 ## Loading Order
 
 1. Create renderer, camera, lights, and the loading overlay.
@@ -67,6 +69,7 @@ Battle reset should return the player to the current scene spawn, not a hard-cod
 
 - Building placements and their collision boxes.
 - NPC placements and dialogue IDs.
+- Named debug screenshot poses for buildings, collision edges, wall seams, NPC close-ups, and battle starts.
 - Ground overlay placements.
 - Detail prop placements.
 - Duplicated wall segment placements.
@@ -108,13 +111,21 @@ Meshy should stay an offline/source-art pipeline, not a runtime API dependency. 
 
 `tools/meshy/generate-first-town-assets.mjs`
 
-It reads `MESHY_API_KEY` first, then falls back to `C:/Users/joshs/Projects/meshy-api-key.txt`. It uses preview-mode GLBs by default for speed and can run refined tasks with `--refine` when a prop is worth polishing.
+It reads `MESHY_API_KEY` first, then falls back to `C:/Users/joshs/Projects/meshy-api-key.txt`. It uses preview plus refine by default so runtime GLBs are textured. Use `--preview-only` only for shape checks.
+
+The enemy kit generator is:
+
+`tools/meshy/generate-enemy-assets.mjs`
+
+It reads `tools/meshy/manifests/enemies.json` by default. Meshy animation is a separate pipeline: the official Animation API applies an action to a completed rigging task, so current enemy runtime idle/attack motion remains procedural until rigged enemy outputs exist.
 
 Source structure:
 
 - `tools/meshy/prompts/first-town/*.json`
+- `tools/meshy/manifests/enemies.json`
 - `public/assets/meshy/raw/<asset-id>/...`
 - `public/assets/town/first-town/*.glb`
+- `public/assets/enemies/first-town/*.glb`
 - `src/config/townAssets.ts`
 
 Generated or planned first-town kit:

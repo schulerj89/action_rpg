@@ -100,8 +100,10 @@ export class BattleDirector {
   private readonly enemyAnchor = new Vector3(0, 1.05, -31.5);
   private readonly partyActors: PartyActor[];
   private readonly playerActor: PartyActor;
+  private readonly spellStart = new Vector3();
 
   private activeActorId?: string;
+  private actionCount = 0;
   private phase: BattlePhase = 'exploration';
   private logLine = 'Run to the glowing ring.';
   private resetTimer = 0;
@@ -483,6 +485,8 @@ export class BattleDirector {
     this.hud.showMoveBanner(actor.name, move.name, 'player');
     this.hud.update(this.snapshot());
 
+    this.actionCount += 1;
+    await this.cameraRig.framePhysicalMove(actor.character.root.position, this.enemy.root.position, this.actionCount);
     await this.animator.heroPhysicalMove(actor.character, this.enemy.root.position, actor.anchor, move, () => {
       const result = this.resolver.resolvePhysicalMove(actor.combatant, this.enemyCombatant, move);
       this.enemy.flashHit();
@@ -497,6 +501,7 @@ export class BattleDirector {
       return;
     }
 
+    await this.cameraRig.restoreBattleView(actor.character.root.position, this.enemy.root.position);
     this.finishPartyAction(actor);
   }
 
@@ -551,11 +556,12 @@ export class BattleDirector {
     const burstPosition =
       move.kind === 'heal' ? healingTarget.character.root.position.clone().setY(0.95) : this.enemy.root.position;
     if (move.kind === 'damage' && actor.role === 'Mage') {
-      await this.vfx.castMageProjectile(actor.character.root.position, this.enemy.root.position);
+      await this.vfx.castMageProjectile(this.getSpellOrigin(actor), this.enemy.root.position);
     } else {
       this.vfx.burstAt(burstPosition, move.kind === 'heal' ? '#dfffea' : '#f7fbff');
     }
     if (move.kind === 'heal') {
+      this.vfx.healingBloomAt(healingTarget.character.root.position);
       this.audio.playHealing();
     } else {
       this.audio.playChiImpact();
@@ -674,7 +680,7 @@ export class BattleDirector {
     await wait(move.chargeMs);
     actor.character.play('slam', { loopOnce: true, fadeSeconds: 0.08, timeScale: 0.94 });
     const impactCamera = this.cameraRig.frameMageSpecialImpact(actor.character.root.position, this.enemy.root.position);
-    await this.vfx.castMageProjectile(actor.character.root.position, this.enemy.root.position, true);
+    await this.vfx.castMageProjectile(this.getSpellOrigin(actor), this.enemy.root.position, true);
     await impactCamera;
 
     this.hud.pulseFlash();
@@ -714,6 +720,7 @@ export class BattleDirector {
 
     await this.cameraRig.frameMageSpecial(actor.character.root.position, this.enemy.root.position);
     await wait(move.chargeMs);
+    await this.cameraRig.frameThunderOverhead(actor.character.root.position, this.enemy.root.position);
 
     this.hud.pulseFlash();
     this.audio.playThunderImpact();
@@ -755,6 +762,8 @@ export class BattleDirector {
     this.logLine = 'Pulse Ram.';
     this.hud.showMoveBanner(this.enemyCombatant.name, 'Pulse Ram', 'enemy');
 
+    this.actionCount += 1;
+    await this.cameraRig.frameEnemyAttack(this.enemy.root.position, target.character.root.position, this.actionCount);
     await this.animator.enemyAttack(this.enemy, target.character.root.position, this.enemyAnchor, () => {
       const result = this.resolver.resolveEnemyAttack(this.enemyCombatant, target.combatant);
       this.audio.playEnemyImpact();
@@ -770,6 +779,7 @@ export class BattleDirector {
 
     target.character.faceToward(this.enemy.root.position);
     target.character.play('battleIdle');
+    await this.cameraRig.restoreBattleView(this.hero.root.position, this.enemy.root.position);
     this.phase = 'charging';
   }
 
@@ -910,6 +920,14 @@ export class BattleDirector {
       const actorRatio = actor.combatant.hp / actor.combatant.maxHp;
       return actorRatio < lowestRatio ? actor : lowest;
     }, livingActors[0]);
+  }
+
+  private getSpellOrigin(actor: PartyActor): Vector3 {
+    if (actor.role === 'Mage') {
+      return actor.character.getAttachmentTipWorldPosition('staff', this.spellStart);
+    }
+
+    return this.spellStart.copy(actor.character.root.position).setY(1.2);
   }
 
   private getActiveLivingActors(): PartyActor[] {

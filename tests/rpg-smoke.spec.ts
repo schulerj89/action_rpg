@@ -1,9 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
+
+const qaScreenshotDir = 'test-results/qa-screens/current';
 
 test('RPG sandbox battle path loads, resolves actions, wins, and resets', async ({ page }) => {
   test.setTimeout(240_000);
   const errors: string[] = [];
   const assetErrors: string[] = [];
+  mkdirSync(qaScreenshotDir, { recursive: true });
 
   page.on('pageerror', (error) => {
     errors.push(error.message);
@@ -49,6 +53,10 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
     ]);
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().townAssetInfo.failed)).toEqual([]);
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().townAssetInfo.loading)).toBe(false);
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().enemyVisual.loading), { timeout: 90_000 }).toBe(false);
+  await expect
+    .poll(() => page.evaluate(() => [...(window.__rpgTest?.getState().enemyVisual.loaded ?? [])].sort()))
+    .toEqual(['ember-prowler', 'shellback-guardian']);
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().townAssetInfo.instanceCounts['town-wall-segment']))
     .toBeGreaterThan(10);
@@ -76,6 +84,8 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('title-screen')).toBeHidden();
+  await expect(page.getByTestId('opening-caption')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('opening-caption')).toBeHidden({ timeout: 8_000 });
   await page.evaluate(() => window.__rpgTest?.muteAudio());
 
   const canvasBox = await page.getByTestId('game-canvas').boundingBox();
@@ -86,6 +96,31 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   const fpsAfter = await page.getByTestId('debug-stats').textContent();
   expect(fpsAfter).toMatch(/FPS/i);
   expect(await page.evaluate(() => window.__rpgTest?.getState().renderInfo.calls)).toBeLessThan(140);
+
+  await page.evaluate(() => window.__rpgTest?.cycleWeather());
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().weatherInfo.mode)).toBe('mist');
+  await page.evaluate(() => window.__rpgTest?.cycleWeather());
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().weatherInfo.mode)).toBe('rain');
+  await page.evaluate(() => window.__rpgTest?.cycleWeather());
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().weatherInfo.mode)).toBe('clear');
+
+  await page.evaluate(() => window.__rpgTest?.toggleMenu());
+  await expect(page.getByTestId('game-menu')).toBeVisible();
+  await page.getByTestId('menu-tab-equipment').click();
+  await expect(page.getByTestId('menu-content')).toContainText('Moonlit Staff');
+  await page.getByTestId('menu-tab-party').click();
+  await expect(page.getByTestId('menu-content')).toContainText('Mira Sol');
+  await page.getByTestId('menu-tab-help').click();
+  await expect(page.getByTestId('menu-content')).toContainText('Right Shift');
+  await page.getByTestId('menu-close').click();
+  await expect(page.getByTestId('game-menu')).toBeHidden();
+
+  await page.evaluate(() => window.__rpgTest?.setFreeCamera(true));
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.mode)).toBe('free');
+  await page.evaluate(() => window.__rpgTest?.setFreeCamera(false));
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.mode)).toBe('exploration');
+
+  await captureTownQaScreenshots(page);
 
   await page.evaluate(() => window.__rpgTest?.interactWithNpc('elder'));
   await expect(page.getByTestId('dialogue-box')).toBeVisible();
@@ -145,6 +180,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
   await page.evaluate(() => window.__rpgTest?.movePlayerToBattleTrigger());
   await expect(page.getByTestId('battle-ui')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().enemyVisual.modelId)).toBe('shellback-guardian');
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().townOccludersVisible)).toBe(false);
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().position.z)).toBeLessThan(-18);
   await expect(page.getByTestId('ally-slot-0-name')).toHaveText('Mira Sol');
@@ -161,13 +197,14 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().battleState))
-    .toBe('charging');
+    .toMatch(/charging|awaitingCommand/);
 
   const heroHpBeforeCounter = await playerHp(page);
   await page.evaluate(() => window.__rpgTest?.forceEnemyReady());
   await expect(page.getByTestId('move-banner')).toContainText('Pulse Ram');
   await expect(page.getByTestId('move-banner')).toHaveClass(/enemy/);
   await expect.poll(() => playerHp(page)).toBeLessThan(heroHpBeforeCounter);
+  await waitForActionRecovery(page);
 
   await page.evaluate(() => window.__rpgTest?.forceHeroReady('mira'));
   await expect(page.getByTestId('move-slot-0')).toHaveText('Spirit Flare');
@@ -184,9 +221,23 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('move-slot-1')).toHaveText('Thunderfall');
   await expect(page.getByTestId('move-slot-1')).toBeEnabled();
   const enemyHpBeforeThunder = await enemyHp(page);
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(true));
   await page.getByTestId('move-slot-1').click();
   await expect(page.getByTestId('move-banner')).toContainText('Thunderfall');
   await expect(page.getByTestId('move-banner')).toHaveClass(/thunder/);
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-mage-thunderfall-charge.png` });
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.preset), { timeout: 7_000 })
+    .toBe('battle.mage.thunder.overhead');
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().vfxInfo.activeEffects.includes('thunder')), {
+      timeout: 8_000,
+    })
+    .toBe(true);
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-mage-thunderfall-overhead.png` });
+  await page.waitForTimeout(460);
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-mage-thunderfall-impact.png` });
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(false));
   await expect.poll(() => enemyHp(page), { timeout: 8_000 }).toBeLessThan(enemyHpBeforeThunder);
   await waitForActionRecovery(page);
   await expect
@@ -319,6 +370,32 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   expect(errors).toEqual([]);
   expect(assetErrors).toEqual([]);
 });
+
+async function captureTownQaScreenshots(page: Page) {
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(true));
+  const poses = await page.evaluate(() => window.__rpgTest?.getState().debugPoses ?? []);
+  const poseIds = poses.map((pose) => pose.id);
+  const requested = [
+    ...poseIds.filter((id) => id.startsWith('building.') && (id.endsWith('.front') || id.endsWith('.collision'))),
+    ...poseIds.filter((id) => id.startsWith('wall.')),
+    ...poseIds.filter((id) => id.startsWith('npc.close.')),
+    'town.north_gate.inside',
+  ];
+
+  for (const poseId of requested) {
+    await page.evaluate((id) => window.__rpgTest?.setDebugPose(id), poseId);
+    await page.waitForTimeout(160);
+    if (poseId.includes('.collision') || poseId.startsWith('wall.')) {
+      await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().collisionOverlay)).toBe(true);
+    }
+    await page.screenshot({ path: `${qaScreenshotDir}/${poseId.replaceAll('.', '-')}.png` });
+  }
+
+  await page.evaluate(() => window.__rpgTest?.setDebugPose('town.spawn.default'));
+  await page.waitForTimeout(120);
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().collisionOverlay)).toBe(false);
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(false));
+}
 
 async function enemyHp(page: { getByTestId: (testId: string) => { textContent: () => Promise<string | null> } }) {
   return Number(await page.getByTestId('enemy-hp').textContent());
