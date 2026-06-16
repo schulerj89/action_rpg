@@ -52,6 +52,21 @@ export class FirstTownScene {
 
     firstTownBuildings.forEach((building) => {
       this.addFallback(building.id, createTownBuilding(building), this.combatHiddenRoot);
+      if (building.kind === 'weapons' || building.kind === 'potions') {
+        this.interactions.push(
+          new InteractionTrigger({
+            id: `${building.id}-shop`,
+            kind: 'shop',
+            position: new Vector3(
+              (building.collider.minX + building.collider.maxX) / 2,
+              0,
+              building.collider.maxZ + 1.05,
+            ),
+            radius: 1.55,
+            shopId: building.kind,
+          }),
+        );
+      }
     });
 
     firstTownNpcs.forEach((npc) => {

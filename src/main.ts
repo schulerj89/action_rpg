@@ -21,6 +21,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 
   <div class="cinematic-darkener" data-testid="cinematic-darkener"></div>
   <div class="cinematic-flash" data-testid="cinematic-flash"></div>
+  <div class="transition-iris" data-testid="transition-iris"></div>
   <div class="qa-caption" data-testid="qa-caption" hidden></div>
   <div class="move-banner" data-testid="move-banner" hidden></div>
   <section class="dialogue-box" data-testid="dialogue-box" hidden>
@@ -59,6 +60,15 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       </nav>
       <div class="game-menu-content" data-testid="menu-content"></div>
     </div>
+  </section>
+
+  <section class="shop-panel" data-testid="shop-panel" hidden>
+    <header>
+      <strong data-testid="shop-title">Shop</strong>
+      <span data-testid="shop-gold">0 gold</span>
+    </header>
+    <div class="shop-list" data-testid="shop-list"></div>
+    <button type="button" class="ghost" data-testid="shop-close">Leave</button>
   </section>
 
   <section class="game-over-screen" data-testid="game-over-screen" hidden>
@@ -133,6 +143,11 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <button type="button" data-testid="debug-teleport-pose">Teleport</button>
       <button type="button" data-testid="debug-camera-pose">Camera</button>
       <button type="button" data-testid="debug-opening-cinematic">Cinematic</button>
+    </div>
+    <div class="debug-commands debug-commands-wide">
+      <button type="button" data-testid="debug-asset-room">Assets</button>
+      <button type="button" data-testid="debug-weapon-shop">Weapon</button>
+      <button type="button" data-testid="debug-potion-shop">Potion</button>
     </div>
     <button type="button" class="ghost debug-menu-button" data-testid="debug-open-menu">Menu</button>
     <label class="debug-toggle">

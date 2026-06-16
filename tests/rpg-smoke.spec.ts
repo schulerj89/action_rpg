@@ -108,12 +108,54 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('game-menu')).toBeVisible();
   await page.getByTestId('menu-tab-equipment').click();
   await expect(page.getByTestId('menu-content')).toContainText('Moonlit Staff');
+  await expect(page.getByTestId('menu-content')).toContainText('Gold');
   await page.getByTestId('menu-tab-party').click();
   await expect(page.getByTestId('menu-content')).toContainText('Mira Sol');
   await page.getByTestId('menu-tab-help').click();
   await expect(page.getByTestId('menu-content')).toContainText('Right Shift');
   await page.getByTestId('menu-close').click();
   await expect(page.getByTestId('game-menu')).toBeHidden();
+
+  await page.evaluate(() => window.__rpgTest?.enterShop('weapons'));
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().currentRoom)).toBe('shop');
+  await expect(page.getByTestId('shop-panel')).toBeVisible();
+  await expect(page.getByTestId('shop-title')).toHaveText('Weapon Shop');
+  await page.waitForTimeout(900);
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(true, true));
+  await page.screenshot({ path: `${qaScreenshotDir}/shop-weapon-interior.png` });
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(false));
+  await page.getByTestId('shop-buy-copper-handwraps').click();
+  await page.getByTestId('shop-equip-copper-handwraps').click();
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().economy.equippedWeaponByHero.ryuji))
+    .toBe('copper-handwraps');
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().economy.gold)).toBe(120);
+  await page.getByTestId('shop-close').click();
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().currentRoom)).toBe('town');
+
+  await page.evaluate(() => window.__rpgTest?.enterShop('potions'));
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().shopId)).toBe('potions');
+  await expect(page.getByTestId('shop-title')).toHaveText('Potion Store');
+  await page.waitForTimeout(900);
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(true, true));
+  await page.screenshot({ path: `${qaScreenshotDir}/shop-potion-interior.png` });
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(false));
+  await page.getByTestId('shop-buy-small-potion').click();
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().economy.inventory['small-potion'])).toBe(3);
+  await page.evaluate(() => window.__rpgTest?.exitSpecialRoom());
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().currentRoom)).toBe('town');
+
+  await page.evaluate(() => window.__rpgTest?.enterAssetRoom());
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().currentRoom), { timeout: 45_000 }).toBe('asset-room');
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().assetRoomInfo.every((item) => item.status === 'loaded')))
+    .toBe(true);
+  await page.waitForTimeout(900);
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(true, true));
+  await page.screenshot({ path: `${qaScreenshotDir}/asset-room-generated-npc-front.png` });
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(false));
+  await page.evaluate(() => window.__rpgTest?.exitSpecialRoom());
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().currentRoom)).toBe('town');
 
   await page.evaluate(() => window.__rpgTest?.setFreeCamera(true));
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.mode)).toBe('free');

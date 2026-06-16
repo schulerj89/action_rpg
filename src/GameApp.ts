@@ -3,9 +3,19 @@ import { AudioDirector } from './audio/AudioDirector';
 import { BattleDirector, type BattlePartyMemberConfig } from './battle/BattleDirector';
 import { moveDebugOptions } from './config/combatConfig';
 import {
+  defaultEquippedWeaponByHero,
+  getItemDefinition,
+  getShopStock,
+  getWeaponDefinition,
+  startingGold,
+  startingInventory,
+  type ShopId,
+} from './config/economy';
+import {
   defaultActiveSupportHeroIds,
   playerHeroDefinition,
   supportHeroDefinitions,
+  type PartyHeroId,
   type SupportHeroDefinition,
   type SupportHeroId,
 } from './config/heroes';
@@ -19,6 +29,7 @@ import { BattleHud } from './ui/BattleHud';
 import { DebugPanel } from './ui/DebugPanel';
 import { DialogueBox } from './ui/DialogueBox';
 import { GameMenu } from './ui/GameMenu';
+import { ShopPanel, type EconomySnapshot } from './ui/ShopPanel';
 import { TitleScreen } from './ui/TitleScreen';
 import { VfxController } from './vfx/VfxController';
 import { CameraRig } from './world/CameraRig';
@@ -26,6 +37,9 @@ import { EncounterTrigger } from './world/EncounterTrigger';
 import { DialogueRepository, type SceneDialogue } from './world/dialogue/DialogueRepository';
 import { createWorldScene } from './world/SceneFactory';
 import type { WorldScene } from './world/SceneFactory';
+import { AssetInspectionRoom } from './world/debug/AssetInspectionRoom';
+import type { InteractionTrigger } from './world/InteractionTrigger';
+import { ShopInteriorScene } from './world/shops/ShopInteriorScene';
 import { FirstTownScene } from './world/town/FirstTownScene';
 import { WeatherSystem } from './world/WeatherSystem';
 
@@ -40,6 +54,7 @@ const leaderBattleAnchor = new Vector3(0, 0, -24.6);
 export class GameApp {
   private readonly canvas: HTMLCanvasElement;
   private readonly audio = new AudioDirector();
+  private readonly assetRoom: AssetInspectionRoom;
   private readonly battle: BattleDirector;
   private readonly cameraRig: CameraRig;
   private readonly debugPanel: DebugPanel;
@@ -61,6 +76,8 @@ export class GameApp {
   private readonly supportRight = new Vector3();
   private readonly targetVelocity = new Vector3();
   private readonly titleScreen: TitleScreen;
+  private readonly shopInteriors = new ShopInteriorScene();
+  private readonly shopPanel: ShopPanel;
   private readonly chiBreakerFootPosition = new Vector3();
   private readonly previousHeroPosition = new Vector3();
   private readonly proposedHeroPosition = new Vector3();
@@ -71,13 +88,19 @@ export class GameApp {
   private readonly openingCaption: HTMLElement;
   private readonly openingCaptionText: HTMLElement;
   private readonly qaCaption: HTMLElement;
+  private readonly transitionIris: HTMLElement;
+  private readonly equippedWeaponByHero: Record<PartyHeroId, string> = { ...defaultEquippedWeaponByHero };
+  private readonly inventory = new Map<string, number>(Object.entries(startingInventory));
   private reverseTurnTargetYaw?: number;
+  private currentRoom: 'asset-room' | 'shop' | 'town' = 'town';
   private cinematicActive = false;
   private enemyAssetsLoading = false;
   private openingCinematicPlayed = false;
   private qaCaptureMode = false;
+  private sceneCaptureMode = false;
   private townAssetsLoading = false;
   private townCombatMode = false;
+  private gold = startingGold;
   private lastFrameTime = performance.now();
 
   private constructor(
@@ -94,17 +117,31 @@ export class GameApp {
     const openingCaption = document.querySelector<HTMLElement>('[data-testid="opening-caption"]');
     const openingCaptionText = document.querySelector<HTMLElement>('[data-testid="opening-caption-text"]');
     const qaCaption = document.querySelector<HTMLElement>('[data-testid="qa-caption"]');
-    if (!openingCaption || !openingCaptionText || !qaCaption) {
+    const transitionIris = document.querySelector<HTMLElement>('[data-testid="transition-iris"]');
+    if (!openingCaption || !openingCaptionText || !qaCaption || !transitionIris) {
       throw new Error('Opening cinematic markup is missing.');
     }
     this.openingCaption = openingCaption;
     this.openingCaptionText = openingCaptionText;
     this.qaCaption = qaCaption;
+    this.transitionIris = transitionIris;
     this.hud = new BattleHud(document);
     this.gameMenu = new GameMenu(document);
+    this.shopPanel = new ShopPanel(document, {
+      onBuy: (itemId) => {
+        this.buyItem(itemId);
+      },
+      onClose: () => {
+        void this.exitSpecialRoom();
+      },
+      onEquip: (itemId) => {
+        this.equipWeapon(itemId);
+      },
+    });
     this.dialogueBox = new DialogueBox(document);
     this.cameraRig = new CameraRig(this.world.camera, this.canvas, () => this.hero.root.position.clone());
     this.weather = new WeatherSystem(this.world.scene);
+    this.assetRoom = new AssetInspectionRoom();
     this.enemy = new EnemyShape();
     this.supportHeroes = supportHeroes;
     this.trigger = new EncounterTrigger(this.town.battleTriggerPosition, 1.35, this.town.battleTriggerPad);
@@ -118,6 +155,7 @@ export class GameApp {
       trigger: this.trigger,
       vfx: this.vfx,
     });
+    this.applyAllEquipmentBonuses();
     this.debugPanel = new DebugPanel(
       document,
       this.battle.getPartyDebugOptions(),
@@ -148,6 +186,12 @@ export class GameApp {
       },
       onOpeningCinematic: () => {
         void this.playOpeningCinematic(true);
+      },
+      onOpenAssetRoom: () => {
+        void this.enterAssetRoom();
+      },
+      onOpenShop: (shopId) => {
+        void this.enterShop(shopId);
       },
       onStartBattle: () => {
         void this.battle.startBattle();
@@ -181,6 +225,8 @@ export class GameApp {
 
     this.world.scene.add(
       this.town.root,
+      this.shopInteriors.root,
+      this.assetRoom.root,
       this.weather.root,
       this.hero.root,
       this.enemy.root,
@@ -280,6 +326,16 @@ export class GameApp {
       this.explorationVelocity.set(0, 0, 0);
       this.hero.play('explorationIdle');
       this.cameraRig.updateExploration(this.hero.root.position, this.heroForward, deltaSeconds);
+      this.updateSupportHeroes(deltaSeconds, true);
+      return;
+    }
+
+    if (this.currentRoom !== 'town') {
+      this.explorationVelocity.set(0, 0, 0);
+      this.hero.play('explorationIdle');
+      if (this.cameraRig.getMode() === 'free') {
+        this.cameraRig.updateFreeCamera(this.input.getFreeCameraAxes(), deltaSeconds);
+      }
       this.updateSupportHeroes(deltaSeconds, true);
       return;
     }
@@ -482,7 +538,7 @@ export class GameApp {
 
   private updateSupportHeroVisibility(): void {
     this.supportHeroes.forEach((supportHero, id) => {
-      supportHero.root.visible = this.activeSupportHeroIds.has(id);
+      supportHero.root.visible = this.currentRoom === 'town' && this.activeSupportHeroIds.has(id);
     });
   }
 
@@ -509,7 +565,9 @@ export class GameApp {
     const townAssetInfo = this.town.getAssetSnapshot();
     const cameraInfo = this.cameraRig.snapshot();
     const weatherInfo = this.weather.snapshot();
-    this.gameMenu.update(battle);
+    const economy = this.getEconomySnapshot();
+    this.gameMenu.update(battle, economy);
+    this.shopPanel.update(economy);
     const info: RuntimeDebugInfo = {
       fps: this.frameStats.fps,
       frameMs: this.frameStats.frameMs,
@@ -562,11 +620,17 @@ export class GameApp {
         return;
       }
 
+      if (this.currentRoom !== 'town') {
+        event.preventDefault();
+        void this.exitSpecialRoom();
+        return;
+      }
+
       if (this.titleScreen.isActive() || this.battle.getPhase() !== 'exploration') {
         return;
       }
 
-      if (this.openNearestDialogue()) {
+      if (this.openNearestInteraction()) {
         event.preventDefault();
       }
     });
@@ -597,17 +661,150 @@ export class GameApp {
     });
   }
 
-  private openNearestDialogue(): boolean {
+  private openNearestInteraction(): boolean {
     const interaction = this.town.findNearestInteraction(this.hero.root.position);
     if (!interaction) {
       return false;
     }
 
-    return this.openDialogue(interaction.npcId);
+    if (interaction.kind === 'shop' && interaction.shopId) {
+      void this.enterShop(interaction.shopId);
+      return true;
+    }
+
+    return this.openDialogue(interaction);
   }
 
-  private openDialogue(npcId: string): boolean {
-    return this.dialogueBox.show(this.sceneDialogue, npcId);
+  private openDialogue(interaction: InteractionTrigger | string): boolean {
+    const npcId = typeof interaction === 'string' ? interaction : interaction.npcId;
+    return npcId ? this.dialogueBox.show(this.sceneDialogue, npcId) : false;
+  }
+
+  private async enterShop(shopId: ShopId): Promise<void> {
+    if (this.battle.getPhase() !== 'exploration') {
+      return;
+    }
+
+    await this.irisTransition(() => {
+      this.currentRoom = 'shop';
+      this.town.root.visible = false;
+      this.assetRoom.hide();
+      this.shopInteriors.showShop(shopId);
+      this.hero.root.position.copy(this.shopInteriors.entry);
+      this.hero.root.rotation.y = Math.PI;
+      setYawForward(this.hero.root.rotation.y, this.heroForward);
+      this.explorationVelocity.set(0, 0, 0);
+      this.updateSupportHeroVisibility();
+      this.cameraRig.setDebugPose(this.shopInteriors.camera, this.shopInteriors.lookAt, 48, `shop.${shopId}`);
+      this.shopPanel.show(shopId, getShopStock(shopId), this.getEconomySnapshot());
+    });
+  }
+
+  private async enterAssetRoom(): Promise<void> {
+    if (this.battle.getPhase() !== 'exploration') {
+      return;
+    }
+
+    await this.assetRoom.loadAssets();
+    await this.irisTransition(() => {
+      this.currentRoom = 'asset-room';
+      this.town.root.visible = false;
+      this.shopPanel.hide();
+      this.shopInteriors.hide();
+      this.assetRoom.show();
+      this.hero.root.position.copy(this.assetRoom.heroStand);
+      this.hero.root.rotation.y = Math.PI;
+      setYawForward(this.hero.root.rotation.y, this.heroForward);
+      this.explorationVelocity.set(0, 0, 0);
+      this.updateSupportHeroVisibility();
+      this.cameraRig.setDebugPose(this.assetRoom.camera, this.assetRoom.lookAt, 44, 'debug.asset-room');
+    });
+  }
+
+  private async exitSpecialRoom(): Promise<void> {
+    if (this.currentRoom === 'town') {
+      return;
+    }
+
+    await this.irisTransition(() => {
+      this.currentRoom = 'town';
+      this.town.root.visible = true;
+      this.shopPanel.hide();
+      this.shopInteriors.hide();
+      this.assetRoom.hide();
+      this.hero.root.position.copy(this.town.spawn);
+      this.hero.root.rotation.y = Math.PI;
+      setYawForward(this.hero.root.rotation.y, this.heroForward);
+      this.explorationVelocity.set(0, 0, 0);
+      this.updateSupportHeroVisibility();
+      this.cameraRig.setExploration();
+    });
+  }
+
+  private buyItem(itemId: string): boolean {
+    const item = getItemDefinition(itemId);
+    if (!item || item.price > this.gold) {
+      return false;
+    }
+
+    this.gold -= item.price;
+    this.inventory.set(item.id, (this.inventory.get(item.id) ?? 0) + 1);
+    this.shopPanel.update(this.getEconomySnapshot());
+    return true;
+  }
+
+  private equipWeapon(itemId: string): boolean {
+    const weapon = getWeaponDefinition(itemId);
+    if (!weapon || (this.inventory.get(itemId) ?? 0) <= 0) {
+      return false;
+    }
+
+    this.equippedWeaponByHero[weapon.heroId] = weapon.id;
+    this.applyEquipmentBonuses(weapon.heroId);
+    this.shopPanel.update(this.getEconomySnapshot());
+    this.debugPanel.refreshParty(this.battle.getPartyDebugOptions());
+    return true;
+  }
+
+  private applyAllEquipmentBonuses(): void {
+    (Object.keys(this.equippedWeaponByHero) as PartyHeroId[]).forEach((heroId) => {
+      this.applyEquipmentBonuses(heroId);
+    });
+  }
+
+  private applyEquipmentBonuses(heroId: PartyHeroId): void {
+    const definition = heroId === playerHeroDefinition.id ? playerHeroDefinition : supportHeroDefinitions.find((hero) => hero.id === heroId);
+    const weapon = getWeaponDefinition(this.equippedWeaponByHero[heroId]);
+    if (!definition) {
+      return;
+    }
+
+    const nextStats = { ...definition.stats };
+    Object.entries(weapon?.statBonuses ?? {}).forEach(([key, amount]) => {
+      const statKey = key as keyof typeof nextStats;
+      nextStats[statKey] += amount ?? 0;
+    });
+    Object.entries(nextStats).forEach(([key, value]) => {
+      this.battle.updateHeroStat(heroId, key as keyof typeof nextStats, value);
+    });
+  }
+
+  private getEconomySnapshot(): EconomySnapshot {
+    return {
+      equippedWeaponByHero: { ...this.equippedWeaponByHero },
+      gold: this.gold,
+      inventory: Object.fromEntries(this.inventory.entries()),
+    };
+  }
+
+  private async irisTransition(apply: () => void): Promise<void> {
+    this.transitionIris.classList.remove('active');
+    void this.transitionIris.offsetWidth;
+    this.transitionIris.classList.add('active');
+    await wait(320);
+    apply();
+    await wait(480);
+    this.transitionIris.classList.remove('active');
   }
 
   private applyDebugPose(
@@ -643,10 +840,12 @@ export class GameApp {
     return true;
   }
 
-  private setQaCaptureMode(enabled: boolean): void {
+  private setQaCaptureMode(enabled: boolean, sceneOnly = false): void {
     this.qaCaptureMode = enabled;
+    this.sceneCaptureMode = enabled && sceneOnly;
     this.qaCaption.hidden = !enabled;
     document.body.classList.toggle('qa-capture-mode', enabled);
+    document.body.classList.toggle('scene-capture-mode', this.sceneCaptureMode);
   }
 
   private updateQaCaption(info: RuntimeDebugInfo): void {
@@ -750,9 +949,11 @@ export class GameApp {
           bossMode: this.battle.isBossMode(),
           cameraInfo,
           collisionOverlay: this.town.isCollisionOverlayVisible(),
+          currentRoom: this.currentRoom,
           debugPoses: this.town.getDebugPoses().map((pose) => ({ id: pose.id, label: pose.label })),
           dialogueActive: this.dialogueBox.isActive(),
           dialogueSpeaker: this.dialogueBox.getCurrentNpcName(),
+          economy: this.getEconomySnapshot(),
           enemyHp: this.battle.enemyCombatant.hp,
           enemyVisual: {
             loading: this.enemyAssetsLoading,
@@ -787,7 +988,9 @@ export class GameApp {
             triangles: this.world.renderer.info.render.triangles,
           },
           sceneId: this.town.sceneId,
+          shopId: this.shopInteriors.getActiveShopId(),
           supportHeroes: Array.from(this.activeSupportHeroIds),
+          assetRoomInfo: this.assetRoom.snapshot(),
           townAssetInfo: {
             fallbackIds: this.town.getFallbackIds(),
             loading: this.townAssetsLoading,
@@ -806,9 +1009,21 @@ export class GameApp {
           xpGained: this.battle.getXpGained(),
           weatherInfo,
           qaCaptureMode: this.qaCaptureMode,
+          sceneCaptureMode: this.sceneCaptureMode,
         };
       },
       interactWithNpc: (npcId: string) => this.openDialogue(npcId),
+      enterAssetRoom: () => {
+        void this.enterAssetRoom();
+      },
+      enterShop: (shopId) => {
+        void this.enterShop(shopId);
+      },
+      exitSpecialRoom: () => {
+        void this.exitSpecialRoom();
+      },
+      buyItem: (itemId) => this.buyItem(itemId),
+      equipWeapon: (itemId) => this.equipWeapon(itemId),
       movePlayerToBattleTrigger: () => {
         this.hero.root.position.copy(this.trigger.getPosition());
         void this.battle.startBattle();
@@ -853,8 +1068,8 @@ export class GameApp {
         this.hero.root.rotation.y = yaw;
         setYawForward(this.hero.root.rotation.y, this.heroForward);
       },
-      setQaCaptureMode: (enabled) => {
-        this.setQaCaptureMode(enabled);
+      setQaCaptureMode: (enabled, sceneOnly = false) => {
+        this.setQaCaptureMode(enabled, sceneOnly);
       },
       testGameOver: () => {
         void this.battle.testGameOver();

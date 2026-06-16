@@ -223,10 +223,16 @@ export interface RpgTestApi {
       preset?: string;
     };
     collisionOverlay: boolean;
+    currentRoom: string;
     debugPoses: Array<{
       id: string;
       label: string;
     }>;
+    economy: {
+      equippedWeaponByHero: Record<string, string>;
+      gold: number;
+      inventory: Record<string, number>;
+    };
     renderInfo: {
       calls: number;
       geometries: number;
@@ -234,7 +240,12 @@ export interface RpgTestApi {
       triangles: number;
     };
     sceneId: string;
+    shopId?: string;
     supportHeroes: string[];
+    assetRoomInfo: Array<{
+      id: string;
+      status: 'failed' | 'loaded' | 'loading';
+    }>;
     townAssetInfo: {
       failed: string[];
       fallbackIds: string[];
@@ -272,9 +283,15 @@ export interface RpgTestApi {
       sky: string;
     };
     qaCaptureMode: boolean;
+    sceneCaptureMode: boolean;
   };
   forceEnemyReady: () => void;
   interactWithNpc: (npcId: string) => boolean;
+  enterAssetRoom: () => void;
+  enterShop: (shopId: 'potions' | 'weapons') => void;
+  exitSpecialRoom: () => void;
+  buyItem: (itemId: string) => boolean;
+  equipWeapon: (itemId: string) => boolean;
   movePlayerToBattleTrigger: () => void;
   muteAudio: () => void;
   setEnemyHp: (value: number) => void;
@@ -287,7 +304,7 @@ export interface RpgTestApi {
   setDebugPose: (id: string, options?: { cameraOnly?: boolean; teleportOnly?: boolean }) => boolean;
   setFreeCamera: (enabled: boolean) => void;
   setHeroYaw: (yaw: number) => void;
-  setQaCaptureMode: (enabled: boolean) => void;
+  setQaCaptureMode: (enabled: boolean, sceneOnly?: boolean) => void;
   setSupportHeroActive: (id: string, active: boolean) => void;
   playOpeningCinematic: () => void;
   toggleMenu: () => void;

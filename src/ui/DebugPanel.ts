@@ -1,4 +1,5 @@
 import type { PartyDebugOption } from '../battle/BattleDirector';
+import type { ShopId } from '../config/economy';
 import type { HeroStats, MoveId, RuntimeDebugInfo } from '../core/types';
 
 type StatKey = keyof HeroStats;
@@ -21,6 +22,8 @@ interface DebugPanelHandlers {
   onForceReady: (heroId: string) => void;
   onFreeCameraToggle: () => void;
   onMenuToggle: () => void;
+  onOpenAssetRoom: () => void;
+  onOpenShop: (shopId: ShopId) => void;
   onOpeningCinematic: () => void;
   onStartBattle: () => void;
   onStatChange: (heroId: string, key: StatKey, value: number) => void;
@@ -75,6 +78,9 @@ export class DebugPanel {
     const weather = root.querySelector<HTMLButtonElement>('[data-testid="debug-weather"]');
     const openingCinematic = root.querySelector<HTMLButtonElement>('[data-testid="debug-opening-cinematic"]');
     const openMenu = root.querySelector<HTMLButtonElement>('[data-testid="debug-open-menu"]');
+    const openAssetRoom = root.querySelector<HTMLButtonElement>('[data-testid="debug-asset-room"]');
+    const openWeaponShop = root.querySelector<HTMLButtonElement>('[data-testid="debug-weapon-shop"]');
+    const openPotionShop = root.querySelector<HTMLButtonElement>('[data-testid="debug-potion-shop"]');
 
     if (
       !statsBox ||
@@ -93,7 +99,10 @@ export class DebugPanel {
       !collision ||
       !weather ||
       !openingCinematic ||
-      !openMenu
+      !openMenu ||
+      !openAssetRoom ||
+      !openWeaponShop ||
+      !openPotionShop
     ) {
       throw new Error('Debug panel markup is missing.');
     }
@@ -129,6 +138,9 @@ export class DebugPanel {
     weather.addEventListener('click', handlers.onWeatherCycle);
     openingCinematic.addEventListener('click', handlers.onOpeningCinematic);
     openMenu.addEventListener('click', handlers.onMenuToggle);
+    openAssetRoom.addEventListener('click', handlers.onOpenAssetRoom);
+    openWeaponShop.addEventListener('click', () => handlers.onOpenShop('weapons'));
+    openPotionShop.addEventListener('click', () => handlers.onOpenShop('potions'));
     this.heroSelect.addEventListener('change', () => {
       this.selectedHeroId = this.heroSelect.value;
       this.renderSelectedHeroControls();

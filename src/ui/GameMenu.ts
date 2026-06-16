@@ -1,4 +1,6 @@
 import type { BattleSnapshot } from '../core/types';
+import { getItemDefinition } from '../config/economy';
+import type { EconomySnapshot } from './ShopPanel';
 
 type MenuTab = 'equipment' | 'help' | 'party' | 'stats';
 
@@ -7,6 +9,7 @@ export class GameMenu {
   private readonly content: HTMLElement;
   private readonly tabButtons: HTMLButtonElement[];
   private activeTab: MenuTab = 'stats';
+  private latestEconomy?: EconomySnapshot;
   private latestSnapshot?: BattleSnapshot;
 
   constructor(root: Document) {
@@ -54,8 +57,9 @@ export class GameMenu {
     return !this.root.hidden;
   }
 
-  update(snapshot: BattleSnapshot): void {
+  update(snapshot: BattleSnapshot, economy?: EconomySnapshot): void {
     this.latestSnapshot = snapshot;
+    this.latestEconomy = economy;
     if (this.isActive()) {
       this.render();
     }
@@ -117,15 +121,25 @@ export class GameMenu {
     this.content.innerHTML = '';
     const list = document.createElement('div');
     list.className = 'menu-list';
+    const economy = this.latestEconomy;
     snapshot.party.forEach((member) => {
       const row = document.createElement('article');
       row.className = 'menu-row';
-      const weapon = member.role === 'Mage' ? 'Moonlit Staff' : 'Training Wraps';
+      const equippedId = economy?.equippedWeaponByHero[member.id];
+      const weapon = equippedId ? (getItemDefinition(equippedId)?.name ?? equippedId) : 'None';
       row.innerHTML = `<strong>${member.name}</strong><span>${weapon}</span><small>${member.equippedMoves
         .map((move) => move.name)
         .join(' / ')}</small>`;
       list.append(row);
     });
+    if (economy) {
+      const gold = document.createElement('article');
+      gold.className = 'menu-row';
+      gold.innerHTML = `<strong>Gold</strong><span>${economy.gold}</span><small>${Object.entries(economy.inventory)
+        .map(([id, count]) => `${getItemDefinition(id)?.name ?? id} x${count}`)
+        .join(' / ')}</small>`;
+      list.prepend(gold);
+    }
     this.content.append(list);
   }
 
