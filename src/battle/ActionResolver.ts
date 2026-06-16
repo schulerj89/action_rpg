@@ -41,12 +41,12 @@ export class ActionResolver {
     return { damage, defeated: defender.hp <= 0 };
   }
 
-  resolveChiHealing(caster: Combatant, move: ChiMoveDefinition): ActionResult {
+  resolveChiHealing(caster: Combatant, target: Combatant, move: ChiMoveDefinition): ActionResult {
     const rawHealing =
       caster.stats.focus * move.focusScale +
       caster.stats.strength * move.strengthScale +
       move.flatBonus;
-    const healing = caster.heal(rawHealing);
+    const healing = target.heal(rawHealing);
 
     return { damage: 0, defeated: false, healing };
   }

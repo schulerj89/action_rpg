@@ -7,6 +7,7 @@ export type BattlePhase =
   | 'enemyAction'
   | 'chiCinematic'
   | 'victory'
+  | 'gameOver'
   | 'resetting';
 
 export type HeroAnimationKey =
@@ -21,8 +22,10 @@ export type HeroAnimationKey =
   | 'sweepKick'
   | 'lungeSpinKick'
   | 'chi'
+  | 'mageCast7'
   | 'slam'
   | 'hit'
+  | 'dead'
   | 'victory';
 
 export type PhysicalMoveId =
@@ -33,7 +36,7 @@ export type PhysicalMoveId =
   | 'craneHighKick'
   | 'sweepKick'
   | 'lungeSpinKick';
-export type ChiMoveId = 'chiBreaker' | 'healingChi';
+export type ChiMoveId = 'spiritFlare' | 'starfallHex' | 'astralCascade' | 'chiBreaker' | 'healingChi';
 export type MoveId = PhysicalMoveId | ChiMoveId;
 export type ChiMoveKind = 'damage' | 'heal';
 export type StatKey = keyof HeroStats;
@@ -57,11 +60,24 @@ export interface CombatantSnapshot {
   stats: HeroStats;
 }
 
+export interface PartyCombatantSnapshot extends CombatantSnapshot {
+  active: boolean;
+  canAct: boolean;
+  equippedMoves: EquippedMoveSnapshot[];
+  id: string;
+  lastXpGained: number;
+  level: number;
+  role: string;
+  xp: number;
+}
+
 export interface BattleSnapshot {
   phase: BattlePhase;
   player: CombatantSnapshot;
+  party: PartyCombatantSnapshot[];
   enemy: CombatantSnapshot;
   canAct: boolean;
+  activeActorId?: string;
   equippedMoves: EquippedMoveSnapshot[];
   logLine: string;
 }
@@ -70,6 +86,15 @@ export interface LevelUpGain {
   stat: StatKey;
   amount: number;
   nextValue: number;
+}
+
+export interface CharacterRewardSummary {
+  level: number;
+  name: string;
+  portraitUrl: string;
+  statGains: LevelUpGain[];
+  totalXp: number;
+  xpGained: number;
 }
 
 export interface EquippedMoveSnapshot {
@@ -96,6 +121,8 @@ export interface ChiMoveDefinition {
   id: ChiMoveId;
   name: string;
   kind: ChiMoveKind;
+  animation?: HeroAnimationKey;
+  special?: 'mageRanged';
   chiCost: number;
   focusScale: number;
   strengthScale: number;
@@ -133,7 +160,9 @@ export interface RuntimeDebugInfo {
 
 export interface RpgTestApi {
   equipMove: (slot: number, moveId: MoveId) => void;
+  equipHeroMove: (heroId: string, slot: number, moveId: MoveId) => void;
   forceReady: () => void;
+  forceHeroReady: (heroId: string) => void;
   getState: () => {
     audioStatus: string;
     battleState: BattlePhase;
@@ -141,10 +170,22 @@ export interface RpgTestApi {
     enemyHp: number;
     equippedMoves: MoveId[];
     level: number;
+    party: Array<{
+      active: boolean;
+      atb: number;
+      chi: number;
+      hp: number;
+      id: string;
+      level: number;
+      moves: MoveId[];
+      name: string;
+      xp: number;
+    }>;
     playerAtb: number;
     playerHp: number;
     playerChi: number;
     position: { x: number; z: number };
+    supportHeroes: string[];
     xpGained: number;
   };
   forceEnemyReady: () => void;
@@ -152,7 +193,11 @@ export interface RpgTestApi {
   muteAudio: () => void;
   setEnemyHp: (value: number) => void;
   setBossMode: (enabled: boolean) => void;
+  setHeroStat: (heroId: string, key: StatKey, value: number) => void;
+  setPlayerHp: (value: number) => void;
   setPlayerPosition: (x: number, z: number) => void;
+  setSupportHeroActive: (id: string, active: boolean) => void;
+  testGameOver: () => void;
 }
 
 declare global {

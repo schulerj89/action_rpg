@@ -18,12 +18,34 @@ interface PlayOptions {
   timeScale?: number;
 }
 
+interface HeroCharacterLoadConfig {
+  animations: Partial<Record<HeroAnimationKey, string>>;
+  attachments?: HeroAttachmentConfig[];
+  name: string;
+}
+
+export interface HeroAttachmentConfig {
+  boneName: string;
+  followMode?: 'bone' | 'handWorld';
+  position?: [number, number, number];
+  rotation?: [number, number, number];
+  scale?: number;
+  url: string;
+}
+
 export class HeroCharacter {
   readonly root: Group;
 
   private readonly mixer: AnimationMixer;
   private readonly actions = new Map<HeroAnimationKey, AnimationAction>();
   private readonly bones = new Map<string, Object3D>();
+  private readonly followedAttachments: Array<{
+    bone: Object3D;
+    object: Object3D;
+    offset: Vector3;
+    rotation: [number, number, number];
+  }> = [];
+  private readonly attachmentPosition = new Vector3();
   private currentAction?: AnimationAction;
   private currentKey?: HeroAnimationKey;
 
@@ -41,24 +63,29 @@ export class HeroCharacter {
     });
   }
 
-  static async load(assets: Record<HeroAnimationKey, string>): Promise<HeroCharacter> {
+  static async load(config: HeroCharacterLoadConfig): Promise<HeroCharacter> {
     const loader = new GLTFLoader();
     const loaded = new Map<HeroAnimationKey, GLTF>();
 
-    for (const key of Object.keys(assets) as HeroAnimationKey[]) {
-      loaded.set(key, await loader.loadAsync(assets[key]));
-    }
+    await Promise.all(
+      (Object.keys(config.animations) as HeroAnimationKey[]).map(async (key) => {
+        const asset = config.animations[key];
+        if (asset) {
+          loaded.set(key, await loader.loadAsync(asset));
+        }
+      }),
+    );
 
     const idleGltf = loaded.get('explorationIdle');
     if (!idleGltf) {
-      throw new Error('Hero exploration idle GLB failed to load.');
+      throw new Error(`${config.name} exploration idle GLB failed to load.`);
     }
 
     const visualRoot = idleGltf.scene;
     normalizeModel(visualRoot);
 
     const root = new Group();
-    root.name = 'Ryuji Vale';
+    root.name = config.name;
     root.add(visualRoot);
 
     visualRoot.traverse((child) => {
@@ -76,12 +103,16 @@ export class HeroCharacter {
     });
 
     const hero = new HeroCharacter(root, visualRoot, clips);
+    if (config.attachments) {
+      await Promise.all(config.attachments.map((attachment) => hero.attachProp(loader, attachment)));
+    }
     hero.play('explorationIdle');
     return hero;
   }
 
   update(deltaSeconds: number): void {
     this.mixer.update(deltaSeconds);
+    this.updateFollowedAttachments();
   }
 
   play(key: HeroAnimationKey, options: PlayOptions = {}): void {
@@ -108,6 +139,10 @@ export class HeroCharacter {
     action.fadeIn(fadeSeconds).play();
     this.currentAction = action;
     this.currentKey = key;
+  }
+
+  getAnimationDuration(key: HeroAnimationKey): number {
+    return this.actions.get(key)?.getClip().duration ?? 0;
   }
 
   faceToward(target: Vector3): void {
@@ -143,6 +178,45 @@ export class HeroCharacter {
     }
 
     return target.copy(this.root.position).add(new Vector3(-0.32, 0.16, 0).applyAxisAngle(new Vector3(0, 1, 0), this.root.rotation.y));
+  }
+
+  private async attachProp(loader: GLTFLoader, config: HeroAttachmentConfig): Promise<void> {
+    const bone = this.bones.get(config.boneName);
+    if (!bone) {
+      return;
+    }
+
+    const gltf = await loader.loadAsync(config.url);
+    const prop = gltf.scene;
+    prop.traverse((child) => {
+      child.visible = true;
+      child.frustumCulled = false;
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+    prop.position.fromArray(config.position ?? [0, 0, 0]);
+    prop.rotation.fromArray(config.rotation ?? [0, 0, 0]);
+    prop.scale.setScalar(config.scale ?? 1);
+    if (config.followMode === 'handWorld') {
+      this.root.add(prop);
+      this.followedAttachments.push({
+        bone,
+        object: prop,
+        offset: new Vector3().fromArray(config.position ?? [0, 0, 0]),
+        rotation: config.rotation ?? [0, 0, 0],
+      });
+      return;
+    }
+    bone.add(prop);
+  }
+
+  private updateFollowedAttachments(): void {
+    this.followedAttachments.forEach((attachment) => {
+      attachment.bone.getWorldPosition(this.attachmentPosition);
+      this.root.worldToLocal(this.attachmentPosition);
+      attachment.object.position.copy(this.attachmentPosition).add(attachment.offset);
+      attachment.object.rotation.fromArray(attachment.rotation);
+    });
   }
 }
 

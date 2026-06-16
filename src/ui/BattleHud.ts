@@ -1,7 +1,13 @@
-import type { BattleSnapshot, LevelUpGain, MoveBannerTone } from '../core/types';
+import type { BattleSnapshot, CharacterRewardSummary, LevelUpGain, MoveBannerTone } from '../core/types';
 
 type MoveSlotHandler = (slotIndex: number) => void;
 type ActionHandler = () => void;
+
+interface SupportPartyMember {
+  active: boolean;
+  name: string;
+  role: string;
+}
 
 export class BattleHud {
   private readonly root: HTMLElement;
@@ -15,6 +21,11 @@ export class BattleHud {
   private readonly enemyAtb: HTMLElement;
   private readonly log: HTMLElement;
   private readonly moveButtons: HTMLButtonElement[];
+  private readonly supportSlots: Array<{
+    name: HTMLElement;
+    root: HTMLElement;
+    status: HTMLElement;
+  }>;
   private readonly resetButton: HTMLButtonElement;
   private readonly victoryState: HTMLElement;
   private readonly victoryResults: HTMLElement;
@@ -24,6 +35,8 @@ export class BattleHud {
   private readonly victoryXpFill: HTMLElement;
   private readonly victoryXp: HTMLElement;
   private readonly victoryTotalXp: HTMLElement;
+  private readonly gameOverScreen: HTMLElement;
+  private readonly gameOverReturnButton: HTMLButtonElement;
   private readonly darkener: HTMLElement;
   private readonly flash: HTMLElement;
   private readonly moveBanner: HTMLElement;
@@ -40,6 +53,11 @@ export class BattleHud {
     const playerChi = root.querySelector<HTMLElement>('[data-testid="player-chi"]');
     const enemyAtb = root.querySelector<HTMLElement>('[data-testid="enemy-atb"]');
     const log = root.querySelector<HTMLElement>('[data-testid="battle-log"]');
+    const supportSlots = [0, 1].map((index) => ({
+      name: root.querySelector<HTMLElement>(`[data-testid="ally-slot-${index}-name"]`),
+      root: root.querySelector<HTMLElement>(`[data-testid="ally-slot-${index}"]`),
+      status: root.querySelector<HTMLElement>(`[data-testid="ally-slot-${index}-status"]`),
+    }));
     const moveButtons = [
       root.querySelector<HTMLButtonElement>('[data-testid="move-slot-0"]'),
       root.querySelector<HTMLButtonElement>('[data-testid="move-slot-1"]'),
@@ -54,6 +72,8 @@ export class BattleHud {
     const victoryXpFill = root.querySelector<HTMLElement>('[data-testid="victory-xp-fill"]');
     const victoryXp = root.querySelector<HTMLElement>('[data-testid="victory-xp"]');
     const victoryTotalXp = root.querySelector<HTMLElement>('[data-testid="victory-total-xp"]');
+    const gameOverScreen = root.querySelector<HTMLElement>('[data-testid="game-over-screen"]');
+    const gameOverReturnButton = root.querySelector<HTMLButtonElement>('[data-testid="return-debug-room"]');
     const darkener = root.querySelector<HTMLElement>('[data-testid="cinematic-darkener"]');
     const flash = root.querySelector<HTMLElement>('[data-testid="cinematic-flash"]');
     const moveBanner = root.querySelector<HTMLElement>('[data-testid="move-banner"]');
@@ -69,6 +89,7 @@ export class BattleHud {
       !playerChi ||
       !enemyAtb ||
       !log ||
+      supportSlots.some((slot) => !slot.name || !slot.root || !slot.status) ||
       moveButtons.some((button) => !button) ||
       !resetButton ||
       !victoryState ||
@@ -79,6 +100,8 @@ export class BattleHud {
       !victoryXpFill ||
       !victoryXp ||
       !victoryTotalXp ||
+      !gameOverScreen ||
+      !gameOverReturnButton ||
       !darkener ||
       !flash ||
       !moveBanner
@@ -96,6 +119,11 @@ export class BattleHud {
     this.playerChi = playerChi;
     this.enemyAtb = enemyAtb;
     this.log = log;
+    this.supportSlots = supportSlots as Array<{
+      name: HTMLElement;
+      root: HTMLElement;
+      status: HTMLElement;
+    }>;
     this.moveButtons = moveButtons as HTMLButtonElement[];
     this.resetButton = resetButton;
     this.victoryState = victoryState;
@@ -106,6 +134,8 @@ export class BattleHud {
     this.victoryXpFill = victoryXpFill;
     this.victoryXp = victoryXp;
     this.victoryTotalXp = victoryTotalXp;
+    this.gameOverScreen = gameOverScreen;
+    this.gameOverReturnButton = gameOverReturnButton;
     this.darkener = darkener;
     this.flash = flash;
     this.moveBanner = moveBanner;
@@ -123,33 +153,56 @@ export class BattleHud {
     this.resetButton.addEventListener('click', handler);
   }
 
+  onGameOverReturn(handler: ActionHandler): void {
+    this.gameOverReturnButton.addEventListener('click', handler);
+  }
+
   setBattleVisible(visible: boolean): void {
     this.root.hidden = !visible;
   }
 
-  showVictoryResults(
-    xpGained: number,
-    totalXp: number,
-    previousLevel: number,
-    nextLevel: number,
-    statGains: LevelUpGain[],
-  ): void {
+  setSupportParty(members: SupportPartyMember[]): void {
+    this.supportSlots.forEach((slot, index) => {
+      const member = members[index];
+      slot.name.textContent = member?.name ?? `Ally ${index + 2}`;
+      slot.status.textContent = member ? (member.active ? `Standby ${member.role}` : 'Removed') : 'Empty';
+      slot.root.classList.toggle('removed', Boolean(member && !member.active));
+      slot.root.classList.toggle('empty', !member);
+    });
+  }
+
+  showVictoryResults(rewards: CharacterRewardSummary[]): void {
+    const leaderReward = rewards[0];
     this.victoryLevelTitle.textContent = 'Level Up';
-    this.victoryLevel.textContent = `Level ${previousLevel} -> ${nextLevel}`;
-    this.victoryXp.textContent = `+${xpGained} XP`;
-    this.victoryTotalXp.textContent = `${totalXp} total XP`;
+    this.victoryLevel.textContent = leaderReward ? `Level ${leaderReward.level - 1} -> ${leaderReward.level}` : 'Level Up';
+    this.victoryXp.textContent = rewards.map((reward) => `${reward.name} +${reward.xpGained} XP`).join(' | ');
+    this.victoryTotalXp.textContent = rewards.map((reward) => `${reward.name} ${reward.totalXp} total`).join(' | ');
     this.victoryStatGains.innerHTML = '';
-    statGains.forEach((gain) => {
+    rewards.forEach((reward) => {
       const row = document.createElement('div');
-      row.className = 'victory-gain-row';
+      row.className = 'victory-reward-card';
+
+      const portrait = document.createElement('img');
+      portrait.src = reward.portraitUrl;
+      portrait.alt = `${reward.name} portrait`;
+      portrait.className = 'victory-portrait';
+
+      const body = document.createElement('div');
+      body.className = 'victory-reward-body';
 
       const label = document.createElement('span');
-      label.textContent = formatStatName(gain.stat);
+      label.textContent = reward.name;
+
+      const xp = document.createElement('b');
+      xp.textContent = `Level ${reward.level - 1} -> ${reward.level} | +${reward.xpGained} XP | ${reward.totalXp} total`;
 
       const value = document.createElement('strong');
-      value.textContent = `+${gain.amount} -> ${gain.nextValue}`;
+      value.textContent = reward.statGains
+        .map((gain) => `${formatStatName(gain.stat)} +${gain.amount} -> ${gain.nextValue}`)
+        .join(', ');
 
-      row.append(label, value);
+      body.append(label, xp, value);
+      row.append(portrait, body);
       this.victoryStatGains.append(row);
     });
     this.victoryXpFill.classList.remove('fill', 'reset');
@@ -167,6 +220,14 @@ export class BattleHud {
     this.victoryResults.hidden = true;
     this.victoryXpFill.classList.remove('fill');
     this.victoryXpFill.style.setProperty('--xp-progress', '0%');
+  }
+
+  showGameOver(): void {
+    this.gameOverScreen.hidden = false;
+  }
+
+  hideGameOver(): void {
+    this.gameOverScreen.hidden = true;
   }
 
   setDarkened(darkened: boolean): void {
@@ -194,6 +255,7 @@ export class BattleHud {
   }
 
   update(snapshot: BattleSnapshot): void {
+    const activeMember = snapshot.party.find((member) => member.id === snapshot.activeActorId) ?? snapshot.party[0];
     this.playerHp.textContent = String(snapshot.player.hp);
     this.playerHpMax.textContent = String(snapshot.player.maxHp);
     this.enemyHp.textContent = String(snapshot.enemy.hp);
@@ -203,10 +265,28 @@ export class BattleHud {
     this.enemyAtb.textContent = String(Math.round(snapshot.enemy.atb));
     this.log.textContent = snapshot.logLine;
 
+    this.supportSlots.forEach((slot, index) => {
+      const member = snapshot.party[index + 1];
+      slot.name.textContent = member?.name ?? `Ally ${index + 2}`;
+      if (!member) {
+        slot.status.textContent = 'Empty';
+      } else if (!member.active) {
+        slot.status.textContent = 'Removed';
+      } else {
+        const ready = member.canAct ? ' Ready' : '';
+        slot.status.textContent = `${member.role} ${member.hp}/${member.maxHp} HP ${member.chi} Chi ${Math.round(
+          member.atb,
+        )} ATB${ready}`;
+      }
+      slot.root.classList.toggle('removed', Boolean(member && !member.active));
+      slot.root.classList.toggle('empty', !member);
+      slot.root.classList.toggle('active-turn', Boolean(member?.canAct));
+    });
+
     this.moveButtons.forEach((button, index) => {
       const move = snapshot.equippedMoves[index];
       button.textContent = move?.name ?? 'Empty';
-      button.disabled = !snapshot.canAct || !move || snapshot.player.chi < move.chiCost;
+      button.disabled = !snapshot.canAct || !move || (activeMember?.chi ?? 0) < move.chiCost;
       button.dataset.moveId = move?.id ?? '';
     });
     this.victoryState.hidden = snapshot.phase !== 'victory';

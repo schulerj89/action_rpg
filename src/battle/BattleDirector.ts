@@ -1,9 +1,7 @@
 import { Vector3 } from 'three';
 import {
   bossEnemyStats,
-  defaultEquippedMoves,
   enemyBaseStats,
-  heroBaseStats,
   battleTunables,
   playerChiMoves,
   playerPhysicalMoves,
@@ -12,6 +10,7 @@ import { tweenVector3, wait } from '../core/tween';
 import type {
   BattlePhase,
   BattleSnapshot,
+  CharacterRewardSummary,
   ChiMoveDefinition,
   HeroStats,
   LevelUpGain,
@@ -31,18 +30,58 @@ import { ATBController } from './ATBController';
 import { BattleAnimator } from './BattleAnimator';
 import { Combatant } from './Combatant';
 
+export interface BattlePartyMemberConfig {
+  active: boolean;
+  allowedMoves: MoveId[];
+  anchor: Vector3;
+  character: HeroCharacter;
+  defaultMoves: MoveId[];
+  id: string;
+  name: string;
+  portraitUrl: string;
+  role: string;
+  stats: HeroStats;
+}
+
+export interface PartyDebugOption {
+  active: boolean;
+  allowedMoves: MoveId[];
+  equippedMoves: MoveId[];
+  id: string;
+  name: string;
+  role: string;
+  stats: HeroStats;
+}
+
+interface PartyActor {
+  active: boolean;
+  allowedMoves: MoveId[];
+  anchor: Vector3;
+  baseStats: HeroStats;
+  character: HeroCharacter;
+  combatant: Combatant;
+  equippedMoves: MoveId[];
+  id: string;
+  lastXpGained: number;
+  level: number;
+  name: string;
+  portraitUrl: string;
+  role: string;
+  xp: number;
+}
+
 interface BattleDirectorDeps {
   audio: AudioDirector;
   cameraRig: CameraRig;
   enemy: EnemyShape;
-  hero: HeroCharacter;
   hud: BattleHud;
+  party: BattlePartyMemberConfig[];
   trigger: EncounterTrigger;
   vfx: VfxController;
 }
 
 export class BattleDirector {
-  readonly player = new Combatant('Ryuji Vale', heroBaseStats);
+  readonly player: Combatant;
   readonly enemyCombatant = new Combatant('Crimson Training Core', enemyBaseStats);
 
   private readonly audio: AudioDirector;
@@ -55,15 +94,14 @@ export class BattleDirector {
   private readonly atb = new ATBController(battleTunables);
   private readonly resolver = new ActionResolver(battleTunables);
   private readonly animator = new BattleAnimator(battleTunables);
-  private readonly heroAnchor = new Vector3(0, 0, -5.8);
   private readonly enemyAnchor = new Vector3(0, 1.05, -12);
+  private readonly partyActors: PartyActor[];
+  private readonly playerActor: PartyActor;
 
-  private playerBaseStats: HeroStats = { ...heroBaseStats };
-  private equippedMoves: MoveId[] = [...defaultEquippedMoves];
+  private activeActorId?: string;
   private phase: BattlePhase = 'exploration';
   private logLine = 'Run to the glowing ring.';
   private resetTimer = 0;
-  private totalXp = 0;
   private xpGained = 0;
   private level = 1;
   private bossMode = false;
@@ -72,10 +110,34 @@ export class BattleDirector {
     this.audio = deps.audio;
     this.cameraRig = deps.cameraRig;
     this.enemy = deps.enemy;
-    this.hero = deps.hero;
     this.hud = deps.hud;
     this.trigger = deps.trigger;
     this.vfx = deps.vfx;
+    this.partyActors = deps.party.map((member) => ({
+      active: member.active,
+      allowedMoves: [...member.allowedMoves],
+      anchor: member.anchor.clone(),
+      baseStats: { ...member.stats },
+      character: member.character,
+      combatant: new Combatant(member.name, member.stats),
+      equippedMoves: [...member.defaultMoves],
+      id: member.id,
+      lastXpGained: 0,
+      level: 1,
+      name: member.name,
+      portraitUrl: member.portraitUrl,
+      role: member.role,
+      xp: 0,
+    }));
+
+    const playerActor = this.partyActors[0];
+    if (!playerActor) {
+      throw new Error('Battle party requires a leader.');
+    }
+
+    this.playerActor = playerActor;
+    this.player = playerActor.combatant;
+    this.hero = playerActor.character;
 
     this.hud.onMoveSlot((slotIndex) => {
       void this.executeEquippedMove(slotIndex);
@@ -83,21 +145,38 @@ export class BattleDirector {
     this.hud.onReset(() => {
       this.resetEncounter();
     });
+    this.hud.onGameOverReturn(() => {
+      this.resetEncounter();
+    });
     this.hud.update(this.snapshot());
   }
 
   update(deltaSeconds: number): void {
     if (this.phase === 'charging' || this.phase === 'awaitingCommand') {
-      this.atb.update(deltaSeconds, this.player, this.enemyCombatant);
+      const activeParty = this.getActiveLivingActors();
+      this.atb.update(
+        deltaSeconds,
+        activeParty.map((actor) => actor.combatant),
+        this.enemyCombatant,
+      );
 
-      if (this.enemyCombatant.atb >= battleTunables.atbMax && this.player.atb < battleTunables.atbMax) {
-        void this.executeEnemyAction();
-      } else if (this.player.atb >= battleTunables.atbMax) {
+      const lockedActor = this.getActiveActor();
+      if (lockedActor?.active && lockedActor.combatant.atb >= battleTunables.atbMax) {
         this.phase = 'awaitingCommand';
-        this.logLine = 'Ryuji is ready.';
+        this.logLine = `${lockedActor.name} is ready.`;
       } else {
-        this.phase = 'charging';
-        this.logLine = 'ATB charging...';
+        const readyActor = activeParty.find((actor) => actor.combatant.atb >= battleTunables.atbMax);
+        if (readyActor) {
+          this.activeActorId = readyActor.id;
+          this.phase = 'awaitingCommand';
+          this.logLine = `${readyActor.name} is ready.`;
+        } else if (this.enemyCombatant.atb >= battleTunables.atbMax) {
+          void this.executeEnemyAction();
+        } else {
+          this.activeActorId = undefined;
+          this.phase = 'charging';
+          this.logLine = 'ATB charging...';
+        }
       }
     }
 
@@ -110,15 +189,21 @@ export class BattleDirector {
     }
 
     this.phase = 'intro';
+    this.activeActorId = undefined;
     this.logLine = 'Battle start.';
-    this.player.atb = 0;
+    this.partyActors.forEach((actor) => {
+      actor.combatant.atb = 0;
+      if (!actor.active) {
+        return;
+      }
+      actor.character.root.position.copy(actor.anchor);
+      actor.character.faceToward(this.enemyAnchor);
+      actor.character.play('battleIdle', { fadeSeconds: 0.12 });
+    });
     this.enemyCombatant.atb = 0;
-    this.hero.root.position.copy(this.heroAnchor);
     this.enemy.root.position.copy(this.enemyAnchor);
     this.enemy.root.visible = true;
     this.applyEnemyMode();
-    this.hero.faceToward(this.enemy.root.position);
-    this.hero.play('battleIdle', { fadeSeconds: 0.12 });
     this.hud.setBattleVisible(true);
     this.hud.update(this.snapshot());
     this.audio.playBattle(this.bossMode);
@@ -132,19 +217,38 @@ export class BattleDirector {
   }
 
   updatePlayerStat(key: keyof HeroStats, value: number): void {
-    this.playerBaseStats = {
-      ...this.playerBaseStats,
-      [key]: value,
-    };
-    this.player.setStats(this.playerBaseStats);
+    this.updateHeroStat(this.playerActor.id, key, value);
   }
 
-  forceReady(): void {
+  updateHeroStat(heroId: string, key: keyof HeroStats, value: number): void {
+    const actor = this.getActor(heroId);
+    if (!actor) {
+      return;
+    }
+
+    actor.baseStats = {
+      ...actor.baseStats,
+      [key]: value,
+    };
+    actor.combatant.setStats(actor.baseStats);
+    this.hud.update(this.snapshot());
+  }
+
+  forceReady(heroId = this.playerActor.id): void {
     if (this.phase !== 'intro' && this.phase !== 'charging' && this.phase !== 'awaitingCommand') {
       return;
     }
 
-    this.atb.forceReady(this.player);
+    const actor = this.getActor(heroId);
+    if (!actor?.active || actor.combatant.hp <= 0) {
+      return;
+    }
+
+    this.atb.forceReady(actor.combatant);
+    this.activeActorId = actor.id;
+    this.phase = 'awaitingCommand';
+    this.logLine = `${actor.name} is ready.`;
+    this.hud.update(this.snapshot());
   }
 
   forceEnemyReady(): void {
@@ -172,8 +276,13 @@ export class BattleDirector {
   resetEncounter(): void {
     window.clearTimeout(this.resetTimer);
     this.phase = 'resetting';
-    this.player.reset();
-    this.player.setStats(this.playerBaseStats);
+    this.activeActorId = undefined;
+    this.partyActors.forEach((actor) => {
+      actor.combatant.reset();
+      actor.combatant.setStats(actor.baseStats);
+      actor.combatant.atb = 0;
+      actor.character.play('explorationIdle');
+    });
     this.enemyCombatant.reset();
     this.enemy.reset();
     this.applyEnemyMode();
@@ -183,10 +292,10 @@ export class BattleDirector {
     this.audio.stopChiBreakerCharge();
     this.hud.setDarkened(false);
     this.hud.hideVictoryResults();
+    this.hud.hideGameOver();
     this.hud.setBattleVisible(false);
     this.audio.stopBattle();
     this.hero.root.position.set(0, 0, 0);
-    this.hero.play('explorationIdle');
     this.trigger.reset();
     this.cameraRig.setExploration();
     this.logLine = 'Run to the glowing ring.';
@@ -196,13 +305,31 @@ export class BattleDirector {
   }
 
   snapshot(): BattleSnapshot {
-    const canAct = this.phase === 'awaitingCommand' && this.player.atb >= battleTunables.atbMax;
+    const activeActor = this.getActiveActor();
+    const activeMovesActor = activeActor ?? this.playerActor;
+    const canAct =
+      this.phase === 'awaitingCommand' &&
+      Boolean(activeActor) &&
+      activeActor!.combatant.atb >= battleTunables.atbMax;
+
     return {
       phase: this.phase,
       player: this.player.snapshot(),
+      party: this.partyActors.map((actor) => ({
+        ...actor.combatant.snapshot(),
+        active: actor.active,
+        canAct: canAct && actor.id === activeActor?.id,
+        equippedMoves: actor.equippedMoves.map((moveId) => this.getEquippedMoveSnapshot(moveId)),
+        id: actor.id,
+        lastXpGained: actor.lastXpGained,
+        level: actor.level,
+        role: actor.role,
+        xp: actor.xp,
+      })),
       enemy: this.enemyCombatant.snapshot(),
       canAct,
-      equippedMoves: this.equippedMoves.map((moveId) => this.getEquippedMoveSnapshot(moveId)),
+      activeActorId: activeActor?.id,
+      equippedMoves: activeMovesActor.equippedMoves.map((moveId) => this.getEquippedMoveSnapshot(moveId)),
       logLine: this.logLine,
     };
   }
@@ -211,8 +338,37 @@ export class BattleDirector {
     return this.phase;
   }
 
-  getEquippedMoves(): MoveId[] {
-    return [...this.equippedMoves];
+  getEquippedMoves(heroId = this.playerActor.id): MoveId[] {
+    return [...(this.getActor(heroId)?.equippedMoves ?? this.playerActor.equippedMoves)];
+  }
+
+  getPartyDebugOptions(): PartyDebugOption[] {
+    return this.partyActors.map((actor) => ({
+      active: actor.active,
+      allowedMoves: [...actor.allowedMoves],
+      equippedMoves: [...actor.equippedMoves],
+      id: actor.id,
+      name: actor.name,
+      role: actor.role,
+      stats: { ...actor.baseStats },
+    }));
+  }
+
+  getActingActorId(): string | undefined {
+    return this.phase === 'playerAction' || this.phase === 'chiCinematic' ? this.activeActorId : undefined;
+  }
+
+  getVfxCharacter(): HeroCharacter {
+    return this.getActiveActor()?.character ?? this.hero;
+  }
+
+  getPartyAnchor(heroId: string, target = new Vector3()): Vector3 | undefined {
+    const actor = this.getActor(heroId);
+    if (!actor) {
+      return undefined;
+    }
+
+    return target.copy(actor.anchor);
   }
 
   getXpGained(): number {
@@ -223,41 +379,107 @@ export class BattleDirector {
     return this.level;
   }
 
-  setEquippedMove(slot: number, moveId: MoveId): void {
-    if (slot < 0 || slot >= this.equippedMoves.length || !this.isKnownMove(moveId)) {
+  setEquippedMove(slot: number, moveId: MoveId, heroId = this.playerActor.id): void {
+    const actor = this.getActor(heroId);
+    if (!actor || slot < 0 || slot >= actor.equippedMoves.length || !this.isKnownMove(moveId)) {
       return;
     }
 
-    this.equippedMoves[slot] = moveId;
+    if (!actor.allowedMoves.includes(moveId)) {
+      return;
+    }
+
+    actor.equippedMoves[slot] = moveId;
     this.hud.update(this.snapshot());
   }
 
+  setPartyMemberActive(heroId: string, active: boolean): boolean {
+    const actor = this.getActor(heroId);
+    if (!actor || actor === this.playerActor) {
+      return false;
+    }
+
+    actor.active = active;
+    actor.combatant.atb = 0;
+    if (!active && this.activeActorId === actor.id) {
+      this.activeActorId = undefined;
+      this.phase = this.phase === 'awaitingCommand' ? 'charging' : this.phase;
+    }
+
+    if (active && this.phase !== 'exploration') {
+      actor.character.root.position.copy(actor.anchor);
+      actor.character.faceToward(this.enemy.root.position);
+      actor.character.play('battleIdle');
+    }
+
+    this.hud.update(this.snapshot());
+    return true;
+  }
+
+  async testGameOver(): Promise<void> {
+    if (this.phase === 'gameOver' || this.phase === 'resetting') {
+      return;
+    }
+
+    window.clearTimeout(this.resetTimer);
+    this.hud.hideVictoryResults();
+    this.hud.hideGameOver();
+    this.vfx.setAura(false);
+    this.vfx.setFootCharge(false);
+    this.audio.stopChiBreakerCharge();
+
+    if (this.phase === 'exploration') {
+      this.partyActors.forEach((actor) => {
+        if (!actor.active) {
+          return;
+        }
+        actor.character.root.position.copy(actor.anchor);
+        actor.character.faceToward(this.enemyAnchor);
+      });
+      this.enemy.root.position.copy(this.enemyAnchor);
+      this.enemy.root.visible = true;
+      this.applyEnemyMode();
+      this.hud.setBattleVisible(true);
+    }
+
+    this.player.setHp(0);
+    await this.enterGameOver();
+  }
+
   private async executeEquippedMove(slotIndex: number): Promise<void> {
-    const moveId = this.equippedMoves[slotIndex];
+    const actor = this.getActiveActor();
+    const moveId = actor?.equippedMoves[slotIndex];
+    if (!actor || !moveId) {
+      return;
+    }
 
     if (moveId in playerPhysicalMoves) {
-      await this.executePhysicalMove(playerPhysicalMoves[moveId as keyof typeof playerPhysicalMoves]);
+      await this.executePhysicalMove(actor, playerPhysicalMoves[moveId as keyof typeof playerPhysicalMoves]);
       return;
     }
 
     if (moveId in playerChiMoves) {
-      await this.executeChiMove(playerChiMoves[moveId as keyof typeof playerChiMoves]);
+      await this.executeChiMove(actor, playerChiMoves[moveId as keyof typeof playerChiMoves]);
     }
   }
 
-  private async executePhysicalMove(move: PhysicalMoveDefinition): Promise<void> {
-    if (this.phase !== 'awaitingCommand' || this.player.atb < battleTunables.atbMax) {
+  private async executePhysicalMove(actor: PartyActor, move: PhysicalMoveDefinition): Promise<void> {
+    if (
+      this.phase !== 'awaitingCommand' ||
+      this.activeActorId !== actor.id ||
+      actor.combatant.atb < battleTunables.atbMax
+    ) {
       return;
     }
 
     this.phase = 'playerAction';
-    this.atb.consume(this.player);
+    this.atb.consume(actor.combatant);
     this.logLine = `${move.name}.`;
-    this.hud.showMoveBanner(this.player.name, move.name, 'player');
+    this.hud.showMoveBanner(actor.name, move.name, 'player');
     this.hud.update(this.snapshot());
 
-    await this.animator.heroPhysicalMove(this.hero, this.enemy.root.position, this.heroAnchor, move, () => {
-      const result = this.resolver.resolvePhysicalMove(this.player, this.enemyCombatant, move);
+    await this.animator.heroPhysicalMove(actor.character, this.enemy.root.position, actor.anchor, move, () => {
+      const result = this.resolver.resolvePhysicalMove(actor.combatant, this.enemyCombatant, move);
       this.enemy.flashHit();
       this.audio.playPhysicalImpact(move.id);
       this.vfx.burstAt(this.enemy.root.position);
@@ -270,43 +492,59 @@ export class BattleDirector {
       return;
     }
 
-    this.phase = 'charging';
+    this.finishPartyAction(actor);
   }
 
-  private async executeChiMove(move: ChiMoveDefinition): Promise<void> {
-    if (this.phase !== 'awaitingCommand' || this.player.atb < battleTunables.atbMax) {
+  private async executeChiMove(actor: PartyActor, move: ChiMoveDefinition): Promise<void> {
+    if (
+      this.phase !== 'awaitingCommand' ||
+      this.activeActorId !== actor.id ||
+      actor.combatant.atb < battleTunables.atbMax
+    ) {
       return;
     }
 
-    if (!this.player.spendChi(move.chiCost)) {
+    if (!actor.combatant.spendChi(move.chiCost)) {
       this.logLine = 'Not enough Chi.';
+      this.hud.update(this.snapshot());
       return;
     }
 
     if (move.id === 'chiBreaker') {
-      await this.executeChiBreaker(move);
+      await this.executeChiBreaker(actor, move);
+      return;
+    }
+
+    if (move.special === 'mageRanged') {
+      await this.executeMageRangedSpecial(actor, move);
       return;
     }
 
     this.phase = 'chiCinematic';
-    this.atb.consume(this.player);
+    this.atb.consume(actor.combatant);
     this.logLine = `${move.name}.`;
-    this.hud.showMoveBanner(this.player.name, move.name, move.kind === 'heal' ? 'healing' : 'chi');
+    this.hud.showMoveBanner(actor.name, move.name, move.kind === 'heal' ? 'healing' : 'chi');
     this.hud.setDarkened(true);
-    this.vfx.setAura(true, move.kind === 'heal' ? 'healing' : 'chi');
+    this.vfx.setAura(true, move.kind === 'heal' ? 'healing' : actor.role === 'Mage' ? 'mage' : 'chi');
     this.audio.playChiCharge();
-    this.hero.play('chi', { loopOnce: true, fadeSeconds: 0.1, timeScale: move.timeScale });
+    actor.character.play(move.animation ?? 'chi', { loopOnce: true, fadeSeconds: 0.1, timeScale: move.timeScale });
     this.hud.update(this.snapshot());
 
-    await this.cameraRig.focusHeroChi(this.hero.root.position, this.enemy.root.position);
+    await this.cameraRig.focusHeroChi(actor.character.root.position, this.enemy.root.position);
     await wait(move.chargeMs);
 
     if (move.kind === 'damage') {
-      this.hero.play('slam', { loopOnce: true, fadeSeconds: 0.08, timeScale: 1.12 });
+      actor.character.play('slam', { loopOnce: true, fadeSeconds: 0.08, timeScale: 1.12 });
     }
     this.hud.pulseFlash();
-    const burstPosition = move.kind === 'heal' ? this.hero.root.position.clone().setY(0.95) : this.enemy.root.position;
-    this.vfx.burstAt(burstPosition, move.kind === 'heal' ? '#dfffea' : '#f7fbff');
+    const healingTarget = move.kind === 'heal' ? this.selectHealingTarget(actor) : actor;
+    const burstPosition =
+      move.kind === 'heal' ? healingTarget.character.root.position.clone().setY(0.95) : this.enemy.root.position;
+    if (move.kind === 'damage' && actor.role === 'Mage') {
+      await this.vfx.castMageProjectile(actor.character.root.position, this.enemy.root.position);
+    } else {
+      this.vfx.burstAt(burstPosition, move.kind === 'heal' ? '#dfffea' : '#f7fbff');
+    }
     if (move.kind === 'heal') {
       this.audio.playHealing();
     } else {
@@ -319,39 +557,42 @@ export class BattleDirector {
 
     const result =
       move.kind === 'heal'
-        ? this.resolver.resolveChiHealing(this.player, move)
-        : this.resolver.resolveChiDamage(this.player, this.enemyCombatant, move);
+        ? this.resolver.resolveChiHealing(actor.combatant, healingTarget.combatant, move)
+        : this.resolver.resolveChiDamage(actor.combatant, this.enemyCombatant, move);
 
     this.logLine =
       move.kind === 'heal'
-        ? `${move.name} restored ${result.healing ?? 0}.`
+        ? `${move.name} restored ${result.healing ?? 0} to ${healingTarget.name}.`
         : `${move.name} dealt ${result.damage}.`;
     window.dispatchEvent(new CustomEvent('rpg:action-resolved', { detail: result }));
 
     this.vfx.setAura(false);
     this.hud.setDarkened(false);
-    await this.cameraRig.restoreBattleView(this.hero.root.position, this.enemy.root.position);
+    await this.cameraRig.restoreBattleView(actor.character.root.position, this.enemy.root.position);
 
     if (this.enemyCombatant.hp <= 0) {
       await this.enterVictory();
       return;
     }
 
-    this.hero.play('battleIdle');
-    this.phase = 'charging';
+    actor.character.play('battleIdle');
+    this.finishPartyAction(actor);
   }
 
-  private async executeChiBreaker(move: ChiMoveDefinition): Promise<void> {
+  private async executeChiBreaker(actor: PartyActor, move: ChiMoveDefinition): Promise<void> {
     this.phase = 'chiCinematic';
-    this.atb.consume(this.player);
+    this.atb.consume(actor.combatant);
     this.logLine = `${move.name}.`;
-    this.hud.showMoveBanner(this.player.name, move.name, 'chi');
+    this.hud.showMoveBanner(actor.name, move.name, 'chi');
     this.hud.setDarkened(true);
     this.hud.update(this.snapshot());
 
     const finisher = playerPhysicalMoves.lungeSpinKick;
     const enemyPosition = this.enemy.root.position.clone();
-    const approachDirection = safeDirection(enemyPosition.clone().sub(this.hero.root.position).setY(0), new Vector3(0, 0, -1));
+    const approachDirection = safeDirection(
+      enemyPosition.clone().sub(actor.character.root.position).setY(0),
+      new Vector3(0, 0, -1),
+    );
     const lateralOffset = new Vector3(approachDirection.z, 0, -approachDirection.x).normalize().multiplyScalar(0.58);
     const strikePosition = enemyPosition
       .clone()
@@ -359,21 +600,21 @@ export class BattleDirector {
       .add(lateralOffset);
     strikePosition.y = 0;
 
-    this.hero.faceToward(enemyPosition);
-    this.hero.play('run', { fadeSeconds: 0.1 });
-    await tweenVector3(this.hero.root.position, strikePosition, battleTunables.approachDurationMs + 160);
+    actor.character.faceToward(enemyPosition);
+    actor.character.play('run', { fadeSeconds: 0.1 });
+    await tweenVector3(actor.character.root.position, strikePosition, battleTunables.approachDurationMs + 160);
 
-    this.hero.faceToward(this.enemy.root.position);
-    this.hero.play('battleIdle', { fadeSeconds: 0.1 });
+    actor.character.faceToward(this.enemy.root.position);
+    actor.character.play('battleIdle', { fadeSeconds: 0.1 });
     this.vfx.setAura(true, 'chi');
     this.vfx.setFootCharge(true);
     this.audio.startChiBreakerCharge();
-    await this.cameraRig.frameChiBreakerCharge(this.hero.root.position, this.enemy.root.position);
+    await this.cameraRig.frameChiBreakerCharge(actor.character.root.position, this.enemy.root.position);
     await wait(Math.max(move.chargeMs, 1500));
 
-    this.hero.faceToward(this.enemy.root.position);
-    this.hero.play('lungeSpinKick', { loopOnce: true, fadeSeconds: 0.08, timeScale: move.timeScale });
-    const impactCamera = this.cameraRig.frameChiBreakerImpact(this.hero.root.position, this.enemy.root.position);
+    actor.character.faceToward(this.enemy.root.position);
+    actor.character.play('lungeSpinKick', { loopOnce: true, fadeSeconds: 0.08, timeScale: move.timeScale });
+    const impactCamera = this.cameraRig.frameChiBreakerImpact(actor.character.root.position, this.enemy.root.position);
     await wait(1650);
     await impactCamera;
 
@@ -383,7 +624,7 @@ export class BattleDirector {
     this.vfx.burstAt(this.enemy.root.position, '#f7fbff');
     this.enemy.flashHit();
 
-    const result = this.resolver.resolveChiDamage(this.player, this.enemyCombatant, move);
+    const result = this.resolver.resolveChiDamage(actor.combatant, this.enemyCombatant, move);
     this.logLine = `${move.name} dealt ${result.damage}.`;
     window.dispatchEvent(new CustomEvent('rpg:action-resolved', { detail: result }));
 
@@ -392,72 +633,156 @@ export class BattleDirector {
     this.vfx.setAura(false);
     this.hud.setDarkened(false);
 
-    this.hero.play('run', { fadeSeconds: 0.12 });
-    this.hero.faceToward(this.heroAnchor);
-    await tweenVector3(this.hero.root.position, this.heroAnchor, battleTunables.returnDurationMs + 120);
-    this.hero.faceToward(this.enemy.root.position);
-    this.hero.play('battleIdle');
+    actor.character.play('run', { fadeSeconds: 0.12 });
+    actor.character.faceToward(actor.anchor);
+    await tweenVector3(actor.character.root.position, actor.anchor, battleTunables.returnDurationMs + 120);
+    actor.character.faceToward(this.enemy.root.position);
+    actor.character.play('battleIdle');
 
     if (this.enemyCombatant.hp <= 0) {
       await this.enterVictory();
       return;
     }
 
-    await this.cameraRig.restoreBattleView(this.hero.root.position, this.enemy.root.position);
-    this.phase = 'charging';
+    await this.cameraRig.restoreBattleView(actor.character.root.position, this.enemy.root.position);
+    this.finishPartyAction(actor);
+  }
+
+  private async executeMageRangedSpecial(actor: PartyActor, move: ChiMoveDefinition): Promise<void> {
+    this.phase = 'chiCinematic';
+    this.atb.consume(actor.combatant);
+    this.logLine = `${move.name}.`;
+    this.hud.showMoveBanner(actor.name, move.name, 'chi');
+    this.hud.setDarkened(true);
+    this.vfx.setAura(true, 'mage');
+    this.audio.playChiCharge();
+    actor.character.faceToward(this.enemy.root.position);
+    actor.character.play(move.animation ?? 'chi', { loopOnce: true, fadeSeconds: 0.1, timeScale: move.timeScale });
+    this.hud.update(this.snapshot());
+
+    await this.cameraRig.frameMageSpecial(actor.character.root.position, this.enemy.root.position);
+    await wait(move.chargeMs);
+    actor.character.play('slam', { loopOnce: true, fadeSeconds: 0.08, timeScale: 0.94 });
+    const impactCamera = this.cameraRig.frameMageSpecialImpact(actor.character.root.position, this.enemy.root.position);
+    await this.vfx.castMageProjectile(actor.character.root.position, this.enemy.root.position, true);
+    await impactCamera;
+
+    this.hud.pulseFlash();
+    this.audio.playChiImpact();
+    this.enemy.flashHit();
+    this.vfx.arcaneBurstAt(this.enemy.root.position);
+    await wait(move.flashMs);
+
+    const result = this.resolver.resolveChiDamage(actor.combatant, this.enemyCombatant, move);
+    this.logLine = `${move.name} dealt ${result.damage}.`;
+    window.dispatchEvent(new CustomEvent('rpg:action-resolved', { detail: result }));
+
+    this.vfx.setAura(false);
+    this.hud.setDarkened(false);
+
+    if (this.enemyCombatant.hp <= 0) {
+      await this.enterVictory();
+      return;
+    }
+
+    await this.cameraRig.restoreBattleView(actor.character.root.position, this.enemy.root.position);
+    actor.character.play('battleIdle');
+    this.finishPartyAction(actor);
   }
 
   private async executeEnemyAction(): Promise<void> {
-    if (this.phase !== 'charging') {
+    if (this.phase !== 'charging' && this.phase !== 'awaitingCommand') {
+      return;
+    }
+
+    const target = this.selectEnemyTarget();
+    if (!target) {
+      await this.enterGameOver();
       return;
     }
 
     this.phase = 'enemyAction';
+    this.activeActorId = undefined;
     this.atb.consume(this.enemyCombatant);
     this.logLine = 'Pulse Ram.';
     this.hud.showMoveBanner(this.enemyCombatant.name, 'Pulse Ram', 'enemy');
 
-    await this.animator.enemyAttack(this.enemy, this.hero.root.position, this.enemyAnchor, () => {
-      const result = this.resolver.resolveEnemyAttack(this.enemyCombatant, this.player);
+    await this.animator.enemyAttack(this.enemy, target.character.root.position, this.enemyAnchor, () => {
+      const result = this.resolver.resolveEnemyAttack(this.enemyCombatant, target.combatant);
       this.audio.playEnemyImpact();
-      this.hero.play('hit', { loopOnce: true, fadeSeconds: 0.08, timeScale: 1.1 });
-      this.logLine = `Counter dealt ${result.damage}.`;
+      target.character.play('hit', { loopOnce: true, fadeSeconds: 0.08, timeScale: 1.1 });
+      this.logLine = `Counter dealt ${result.damage} to ${target.name}.`;
       window.dispatchEvent(new CustomEvent('rpg:action-resolved', { detail: result }));
     });
 
-    this.hero.faceToward(this.enemy.root.position);
-    this.hero.play('battleIdle');
-    this.phase = this.player.hp <= 0 ? 'resetting' : 'charging';
-
     if (this.player.hp <= 0) {
-      this.logLine = 'Ryuji was knocked down. Resetting.';
-      await wait(900);
-      this.resetEncounter();
+      await this.enterGameOver();
+      return;
     }
+
+    target.character.faceToward(this.enemy.root.position);
+    target.character.play('battleIdle');
+    this.phase = 'charging';
   }
 
   private async enterVictory(): Promise<void> {
     this.phase = 'victory';
     this.logLine = 'Victory.';
-    this.xpGained = this.calculateXpReward();
-    this.totalXp += this.xpGained;
-    const previousLevel = this.level;
-    this.level += 1;
-    const statGains = this.applyLevelUpGains();
+    const rewards = this.applyVictoryRewards(this.calculateXpReward());
+    this.xpGained = this.playerActor.lastXpGained;
+    this.level = this.playerActor.level;
+    this.activeActorId = undefined;
     this.enemy.root.visible = false;
     this.hud.update(this.snapshot());
-    this.hud.showVictoryResults(this.xpGained, this.totalXp, previousLevel, this.level, statGains);
+    this.hud.showVictoryResults(rewards);
     this.audio.playVictory();
     this.audio.playLevelUp();
     window.dispatchEvent(new CustomEvent('rpg:victory'));
     await Promise.all([
-      this.animator.heroVictory(this.hero),
+      ...this.partyActors.filter((actor) => actor.active).map((actor) => this.animator.heroVictory(actor.character)),
       this.cameraRig.victorySequence(this.hero.root.position, this.enemy.root.position),
     ]);
 
     this.resetTimer = window.setTimeout(() => {
       this.resetEncounter();
     }, battleTunables.victoryHoldMs);
+  }
+
+  private async enterGameOver(): Promise<void> {
+    this.phase = 'gameOver';
+    this.activeActorId = undefined;
+    this.logLine = 'Ryuji fell.';
+    this.player.setHp(0);
+    this.partyActors.forEach((actor) => {
+      actor.combatant.atb = 0;
+    });
+    this.enemyCombatant.atb = 0;
+    this.vfx.setAura(false);
+    this.vfx.setFootCharge(false);
+    this.hud.setDarkened(false);
+    this.hud.update(this.snapshot());
+    this.audio.stopBattle();
+
+    const faintTimeScale = 1.05;
+    const faintDurationMs = this.hero.getAnimationDuration('dead') * (1000 / faintTimeScale);
+    this.hero.faceToward(this.enemy.root.position);
+    this.hero.play('dead', { loopOnce: true, fadeSeconds: 0.08, timeScale: faintTimeScale });
+    await wait(Math.max(faintDurationMs + 160, 3000));
+
+    this.audio.playGameOver();
+    await wait(360);
+    this.hud.setBattleVisible(false);
+    this.hud.showGameOver();
+    window.dispatchEvent(new CustomEvent('rpg:game-over'));
+  }
+
+  private finishPartyAction(actor: PartyActor): void {
+    if (this.activeActorId === actor.id) {
+      this.activeActorId = undefined;
+    }
+    actor.character.faceToward(this.enemy.root.position);
+    actor.character.play('battleIdle');
+    this.phase = 'charging';
   }
 
   private calculateXpReward(): number {
@@ -470,9 +795,31 @@ export class BattleDirector {
     this.enemyCombatant.setStats(this.bossMode ? bossEnemyStats : enemyBaseStats);
   }
 
-  private applyLevelUpGains(): LevelUpGain[] {
-    const gainKeys: StatKey[] = ['strength', 'dexterity', 'focus'];
-    if (this.level % 2 === 0) {
+  private applyVictoryRewards(baseXp: number): CharacterRewardSummary[] {
+    return this.partyActors
+      .filter((actor) => actor.active)
+      .map((actor) => {
+        const xpGained = Math.round(baseXp * (actor.id === 'mira' ? 0.5 : 1));
+        actor.lastXpGained = xpGained;
+        actor.xp += xpGained;
+        actor.level += 1;
+        const statGains = this.applyLevelUpGains(actor);
+        actor.combatant.setHp(actor.combatant.maxHp);
+        return {
+          level: actor.level,
+          name: actor.name,
+          portraitUrl: actor.portraitUrl,
+          statGains,
+          totalXp: actor.xp,
+          xpGained,
+        };
+      });
+  }
+
+  private applyLevelUpGains(actor: PartyActor): LevelUpGain[] {
+    const gainKeys: StatKey[] =
+      actor.role === 'Mage' ? ['focus', 'dexterity', 'vitality'] : ['strength', 'dexterity', 'focus'];
+    if (actor.level % 2 === 0 && !gainKeys.includes('vitality')) {
       gainKeys.push('vitality');
     }
     if (this.bossMode) {
@@ -482,19 +829,51 @@ export class BattleDirector {
     const gains = gainKeys.map((stat) => ({
       stat,
       amount: 1,
-      nextValue: this.playerBaseStats[stat] + 1,
+      nextValue: actor.baseStats[stat] + 1,
     }));
 
-    this.playerBaseStats = gains.reduce(
+    actor.baseStats = gains.reduce(
       (stats, gain) => ({
         ...stats,
         [gain.stat]: gain.nextValue,
       }),
-      this.playerBaseStats,
+      actor.baseStats,
     );
-    this.player.setStats(this.playerBaseStats);
-    this.player.setHp(this.player.maxHp);
+    actor.combatant.setStats(actor.baseStats);
     return gains;
+  }
+
+  private selectEnemyTarget(): PartyActor | undefined {
+    if (this.playerActor.active && this.player.hp > 0) {
+      return this.playerActor;
+    }
+
+    return this.getActiveLivingActors()[0];
+  }
+
+  private selectHealingTarget(fallback: PartyActor): PartyActor {
+    const livingActors = this.getActiveLivingActors();
+    if (livingActors.length === 0) {
+      return fallback;
+    }
+
+    return livingActors.reduce((lowest, actor) => {
+      const lowestRatio = lowest.combatant.hp / lowest.combatant.maxHp;
+      const actorRatio = actor.combatant.hp / actor.combatant.maxHp;
+      return actorRatio < lowestRatio ? actor : lowest;
+    }, livingActors[0]);
+  }
+
+  private getActiveLivingActors(): PartyActor[] {
+    return this.partyActors.filter((actor) => actor.active && actor.combatant.hp > 0);
+  }
+
+  private getActiveActor(): PartyActor | undefined {
+    return this.activeActorId ? this.getActor(this.activeActorId) : undefined;
+  }
+
+  private getActor(heroId: string): PartyActor | undefined {
+    return this.partyActors.find((actor) => actor.id === heroId);
   }
 
   private getEquippedMoveSnapshot(moveId: MoveId) {

@@ -16,6 +16,14 @@ export const heroBaseStats: HeroStats = {
   defense: 8,
 };
 
+export const mageBaseStats: HeroStats = {
+  strength: 7,
+  dexterity: 17,
+  vitality: 10,
+  focus: 19,
+  defense: 6,
+};
+
 export const enemyBaseStats: HeroStats = {
   strength: 9,
   dexterity: 7,
@@ -127,6 +135,45 @@ export const playerPhysicalMoves: Record<PhysicalMoveId, PhysicalMoveDefinition>
 };
 
 export const playerChiMoves: Record<ChiMoveId, ChiMoveDefinition> = {
+  spiritFlare: {
+    id: 'spiritFlare',
+    name: 'Spirit Flare',
+    kind: 'damage',
+    chiCost: 18,
+    focusScale: 5.2,
+    strengthScale: 0.65,
+    flatBonus: 26,
+    chargeMs: 760,
+    flashMs: 220,
+    timeScale: 0.9,
+  },
+  starfallHex: {
+    id: 'starfallHex',
+    name: 'Starfall Hex',
+    kind: 'damage',
+    animation: 'mageCast7',
+    chiCost: 22,
+    focusScale: 5.9,
+    strengthScale: 0.55,
+    flatBonus: 30,
+    chargeMs: 980,
+    flashMs: 260,
+    timeScale: 0.86,
+  },
+  astralCascade: {
+    id: 'astralCascade',
+    name: 'Astral Cascade',
+    kind: 'damage',
+    special: 'mageRanged',
+    animation: 'mageCast7',
+    chiCost: 36,
+    focusScale: 8.2,
+    strengthScale: 0.8,
+    flatBonus: 44,
+    chargeMs: 1500,
+    flashMs: 420,
+    timeScale: 0.78,
+  },
   chiBreaker: {
     id: 'chiBreaker',
     name: 'Chi Breaker',
@@ -154,6 +201,7 @@ export const playerChiMoves: Record<ChiMoveId, ChiMoveDefinition> = {
 };
 
 export const defaultEquippedMoves: MoveId[] = ['ironPalm', 'dragonHeel', 'chiBreaker'];
+export const mageDefaultEquippedMoves: MoveId[] = ['spiritFlare', 'starfallHex', 'astralCascade'];
 
 export const moveDebugOptions: Array<{ id: MoveId; name: string }> = [
   { id: 'ironPalm', name: 'Iron Palm Rush' },
@@ -163,6 +211,9 @@ export const moveDebugOptions: Array<{ id: MoveId; name: string }> = [
   { id: 'craneHighKick', name: 'Crane High Kick' },
   { id: 'sweepKick', name: 'Lotus Sweep' },
   { id: 'lungeSpinKick', name: 'Tempest Spin Kick' },
+  { id: 'spiritFlare', name: 'Spirit Flare' },
+  { id: 'starfallHex', name: 'Starfall Hex' },
+  { id: 'astralCascade', name: 'Astral Cascade' },
   { id: 'chiBreaker', name: 'Chi Breaker' },
   { id: 'healingChi', name: 'Healing Chi' },
 ];

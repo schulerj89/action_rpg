@@ -7,17 +7,21 @@ import {
   chiImpactSfxAsset,
   healingSfxAsset,
   enemyImpactSfxAsset,
+  gameOverMusicAsset,
   kickImpactSfxAsset,
   levelUpSfxAsset,
   punchImpactSfxAsset,
+  titleMusicAsset,
   victoryMusicAsset,
 } from '../config/assets';
 import type { PhysicalMoveId } from '../core/types';
 
 export class AudioDirector {
+  private readonly titleMusic = new Audio(titleMusicAsset.url);
   private readonly battleMusic = new Audio(battleMusicAsset.url);
   private readonly bossMusic = new Audio(bossMusicAsset.url);
   private readonly victoryMusic = new Audio(victoryMusicAsset.url);
+  private readonly gameOverMusic = new Audio(gameOverMusicAsset.url);
   private readonly chiChargeSfx = new Audio(chiChargeSfxAsset.url);
   private readonly chiBreakerChargeStartSfx = new Audio(chiBreakerChargeStartSfxAsset.url);
   private readonly chiBreakerChargeLoop = new Audio(chiBreakerChargeLoopSfxAsset.url);
@@ -32,9 +36,11 @@ export class AudioDirector {
   private status = 'idle';
 
   constructor() {
+    this.configureTrack(this.titleMusic, true, 0.42);
     this.configureTrack(this.battleMusic, true, 0.38);
     this.configureTrack(this.bossMusic, true, 0.42);
     this.configureTrack(this.victoryMusic, false, 0.56);
+    this.configureTrack(this.gameOverMusic, true, 0.48);
     this.configureSfx(this.chiChargeSfx, 0.58);
     this.configureSfx(this.chiBreakerChargeStartSfx, 0.54);
     this.configureLoopedSfx(this.chiBreakerChargeLoop, 0.38, 0.88);
@@ -53,8 +59,23 @@ export class AudioDirector {
     this.playTrack(track, isBossBattle ? 'boss music' : 'battle music');
   }
 
+  playTitle(): void {
+    this.playTrack(this.titleMusic, 'title music');
+  }
+
+  stopTitle(): void {
+    this.stopTrack(this.titleMusic);
+    if (this.pendingTrack === this.titleMusic) {
+      this.pendingTrack = undefined;
+    }
+  }
+
   playVictory(): void {
     this.playTrack(this.victoryMusic, 'victory song');
+  }
+
+  playGameOver(): void {
+    this.playTrack(this.gameOverMusic, 'game over music');
   }
 
   playChiCharge(): void {
@@ -149,10 +170,14 @@ export class AudioDirector {
   }
 
   private stopAllTracks(): void {
-    [this.battleMusic, this.bossMusic, this.victoryMusic].forEach((track) => {
-      track.pause();
-      track.currentTime = 0;
+    [this.titleMusic, this.battleMusic, this.bossMusic, this.victoryMusic, this.gameOverMusic].forEach((track) => {
+      this.stopTrack(track);
     });
+  }
+
+  private stopTrack(track: HTMLAudioElement): void {
+    track.pause();
+    track.currentTime = 0;
   }
 
   private playSfx(track: HTMLAudioElement): void {

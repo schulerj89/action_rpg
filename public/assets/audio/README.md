@@ -16,11 +16,27 @@ Author: HydroGene
 
 License: CC0
 
+`cynicmusic-a-new-town.mp3`
+
+Source: https://opengameart.org/content/a-new-town-rpg-theme
+
+Author: cynicmusic
+
+License: CC0
+
 `cynicmusic-victory-theme-for-rpg.mp3`
 
 Source: https://opengameart.org/content/victory-theme-for-rpg
 
 Author: cynicmusic
+
+License: CC0
+
+`emma-ma-sad-game-over.ogg`
+
+Source: https://opengameart.org/content/sad-game-over
+
+Author: Emma_MA
 
 License: CC0
 

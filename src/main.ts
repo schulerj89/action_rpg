@@ -4,6 +4,21 @@ import { GameApp } from './GameApp';
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <canvas id="game-canvas" data-testid="game-canvas" aria-label="Action RPG sandbox"></canvas>
 
+  <section class="title-screen" data-testid="title-screen">
+    <div class="title-stack">
+      <h1>Aetherwake</h1>
+      <nav class="title-menu">
+        <button type="button" data-testid="title-start">Start</button>
+        <button type="button" data-testid="title-menu">Menu</button>
+      </nav>
+      <div class="title-menu-panel" data-testid="title-menu-panel" hidden>
+        <strong>Settings</strong>
+        <span>Coming soon</span>
+        <button type="button" data-testid="title-back">Back</button>
+      </div>
+    </div>
+  </section>
+
   <div class="cinematic-darkener" data-testid="cinematic-darkener"></div>
   <div class="cinematic-flash" data-testid="cinematic-flash"></div>
   <div class="move-banner" data-testid="move-banner" hidden></div>
@@ -19,6 +34,12 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <span data-testid="victory-total-xp">0 total XP</span>
   </section>
 
+  <section class="game-over-screen" data-testid="game-over-screen" hidden>
+    <div class="game-over-kicker">Ryuji has fallen</div>
+    <h1>Game Over</h1>
+    <button type="button" data-testid="return-debug-room">Return</button>
+  </section>
+
   <section class="battle-ui" data-testid="battle-ui" hidden>
     <div class="combatants">
       <div class="party-roster">
@@ -27,13 +48,13 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
           <span><span data-testid="player-hp">0</span>/<span data-testid="player-hp-max">0</span> HP</span>
           <span><span data-testid="player-chi">0</span> Chi</span>
         </div>
-        <div class="combatant ally-standby">
-          <strong>Ally 2</strong>
-          <span>Standby</span>
+        <div class="combatant ally-standby" data-testid="ally-slot-0">
+          <strong data-testid="ally-slot-0-name">Mira Sol</strong>
+          <span data-testid="ally-slot-0-status">Standby Mage</span>
         </div>
-        <div class="combatant ally-standby">
-          <strong>Ally 3</strong>
-          <span>Standby</span>
+        <div class="combatant ally-standby" data-testid="ally-slot-1">
+          <strong data-testid="ally-slot-1-name">Ally 3</strong>
+          <span data-testid="ally-slot-1-status">Empty</span>
         </div>
       </div>
       <div class="combatant enemy">
@@ -63,14 +84,20 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 
   <aside class="debug-panel">
     <pre data-testid="debug-stats">Loading...</pre>
+    <label class="debug-select debug-hero-picker">
+      <span>Edit</span>
+      <select data-testid="debug-hero-select"></select>
+    </label>
     <div class="debug-commands">
       <button type="button" data-testid="debug-start-battle">Start</button>
       <button type="button" data-testid="debug-force-ready">Ready</button>
+      <button type="button" data-testid="debug-test-faint">Faint</button>
     </div>
     <label class="debug-toggle">
       <input type="checkbox" data-testid="debug-boss-mode" />
       <span>Boss mode</span>
     </label>
+    <div class="debug-party" data-testid="debug-party"></div>
     <div class="debug-loadout" data-testid="debug-loadout"></div>
     <div class="stat-sliders" data-testid="stat-sliders"></div>
   </aside>

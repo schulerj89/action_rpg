@@ -76,6 +76,28 @@ export class CameraRig {
     await this.moveCamera(targetPosition, targetLook, 760);
   }
 
+  async frameMageSpecial(casterPosition: Vector3, enemyPosition: Vector3): Promise<void> {
+    this.mode = 'scripted';
+    const forward = enemyPosition.clone().sub(casterPosition).setY(0).normalize();
+    const right = new Vector3(forward.z, 0, -forward.x).normalize();
+    const targetPosition = casterPosition.clone().addScaledVector(forward, -4.2).addScaledVector(right, -2.35);
+    targetPosition.y += 2.55;
+    const targetLook = casterPosition.clone().lerp(enemyPosition, 0.48);
+    targetLook.y += 1.15;
+    await this.moveCamera(targetPosition, targetLook, 680);
+  }
+
+  async frameMageSpecialImpact(casterPosition: Vector3, enemyPosition: Vector3): Promise<void> {
+    this.mode = 'scripted';
+    const forward = enemyPosition.clone().sub(casterPosition).setY(0).normalize();
+    const right = new Vector3(forward.z, 0, -forward.x).normalize();
+    const targetPosition = enemyPosition.clone().addScaledVector(forward, -3.25).addScaledVector(right, 1.6);
+    targetPosition.y += 2.1;
+    const targetLook = enemyPosition.clone();
+    targetLook.y += 1.05;
+    await this.moveCamera(targetPosition, targetLook, 520);
+  }
+
   async restoreBattleView(heroPosition: Vector3, enemyPosition: Vector3): Promise<void> {
     await this.transitionToBattle(heroPosition, enemyPosition);
   }

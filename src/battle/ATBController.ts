@@ -8,11 +8,13 @@ export class ATBController {
     this.tunables = tunables;
   }
 
-  update(deltaSeconds: number, player: Combatant, enemy: Combatant): void {
-    player.atb = Math.min(
-      this.tunables.atbMax,
-      player.atb + deltaSeconds * player.stats.dexterity * this.tunables.playerAtbMultiplier,
-    );
+  update(deltaSeconds: number, party: Combatant[], enemy: Combatant): void {
+    party.forEach((combatant) => {
+      combatant.atb = Math.min(
+        this.tunables.atbMax,
+        combatant.atb + deltaSeconds * combatant.stats.dexterity * this.tunables.playerAtbMultiplier,
+      );
+    });
     enemy.atb = Math.min(
       this.tunables.atbMax,
       enemy.atb + deltaSeconds * enemy.stats.dexterity * this.tunables.enemyAtbMultiplier,
