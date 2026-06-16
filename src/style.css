@@ -911,6 +911,11 @@ body.qa-capture-mode .debug-panel {
   display: none;
 }
 
+body.playthrough-capture-mode .debug-panel,
+body.playthrough-capture-mode .qa-caption {
+  display: none;
+}
+
 body.scene-capture-mode .shop-panel {
   display: none;
 }
@@ -920,10 +925,12 @@ body.qa-capture-mode .battle-ui {
 }
 
 @media (min-width: 1180px) {
+  body.playthrough-capture-mode .battle-turn-ladder,
   body.qa-capture-mode .battle-turn-ladder {
     right: 18px;
   }
 
+  body.playthrough-capture-mode .battle-status-panel,
   body.qa-capture-mode .battle-status-panel {
     right: 22px;
   }

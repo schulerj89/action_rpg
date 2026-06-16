@@ -1,7 +1,7 @@
 {
   "name": "action_rpg",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -12,7 +12,8 @@
     "assets:meshy-town-npcs": "node tools/meshy/generate-town-npc-assets.mjs",
     "assets:meshy-shop-interiors": "node tools/meshy/generate-shop-interior-assets.mjs",
     "smoke": "playwright test",
-    "smoke:headed": "playwright test --headed"
+    "smoke:headed": "playwright test --headed",
+    "smoke:playthrough": "playwright test tests/town-playthrough.spec.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",
