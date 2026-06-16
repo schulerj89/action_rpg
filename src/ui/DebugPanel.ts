@@ -1,8 +1,15 @@
-import type { HeroStats, RuntimeDebugInfo } from '../core/types';
+import type { HeroStats, MoveId, RuntimeDebugInfo } from '../core/types';
 
 type StatKey = keyof HeroStats;
 
+interface MoveDebugOption {
+  id: MoveId;
+  name: string;
+}
+
 interface DebugPanelHandlers {
+  onBossModeChange: (enabled: boolean) => void;
+  onEquipMove: (slot: number, moveId: MoveId) => void;
   onForceReady: () => void;
   onStartBattle: () => void;
   onStatChange: (key: StatKey, value: number) => void;
@@ -17,23 +24,39 @@ const sliders: Array<{ key: StatKey; label: string; max: number; min: number }> 
 ];
 
 export class DebugPanel {
+  private readonly loadoutBox: HTMLElement;
   private readonly statsBox: HTMLElement;
   private readonly slidersBox: HTMLElement;
 
-  constructor(root: Document, initialStats: HeroStats, handlers: DebugPanelHandlers) {
+  constructor(
+    root: Document,
+    initialStats: HeroStats,
+    moveOptions: MoveDebugOption[],
+    equippedMoves: MoveId[],
+    bossMode: boolean,
+    handlers: DebugPanelHandlers,
+  ) {
     const statsBox = root.querySelector<HTMLElement>('[data-testid="debug-stats"]');
     const slidersBox = root.querySelector<HTMLElement>('[data-testid="stat-sliders"]');
+    const loadoutBox = root.querySelector<HTMLElement>('[data-testid="debug-loadout"]');
     const startBattle = root.querySelector<HTMLButtonElement>('[data-testid="debug-start-battle"]');
     const forceReady = root.querySelector<HTMLButtonElement>('[data-testid="debug-force-ready"]');
+    const bossModeToggle = root.querySelector<HTMLInputElement>('[data-testid="debug-boss-mode"]');
 
-    if (!statsBox || !slidersBox || !startBattle || !forceReady) {
+    if (!statsBox || !slidersBox || !loadoutBox || !startBattle || !forceReady || !bossModeToggle) {
       throw new Error('Debug panel markup is missing.');
     }
 
     this.statsBox = statsBox;
     this.slidersBox = slidersBox;
+    this.loadoutBox = loadoutBox;
+    bossModeToggle.checked = bossMode;
+    bossModeToggle.addEventListener('change', () => {
+      handlers.onBossModeChange(bossModeToggle.checked);
+    });
     startBattle.addEventListener('click', handlers.onStartBattle);
     forceReady.addEventListener('click', handlers.onForceReady);
+    this.renderLoadout(moveOptions, equippedMoves, handlers.onEquipMove);
     this.renderSliders(initialStats, handlers.onStatChange);
   }
 
@@ -44,6 +67,7 @@ export class DebugPanel {
       `Pos ${info.playerX.toFixed(1)}, ${info.playerZ.toFixed(1)}`,
       `Hero HP ${info.battle.player.hp}/${info.battle.player.maxHp} ATB ${Math.round(info.battle.player.atb)}`,
       `Enemy HP ${info.battle.enemy.hp}/${info.battle.enemy.maxHp} ATB ${Math.round(info.battle.enemy.atb)}`,
+      `Boss ${info.bossMode ? 'on' : 'off'}`,
       `Audio ${info.audioStatus}`,
     ];
 
@@ -76,6 +100,40 @@ export class DebugPanel {
 
       row.append(title, input, value);
       this.slidersBox.append(row);
+    });
+  }
+
+  private renderLoadout(
+    moveOptions: MoveDebugOption[],
+    equippedMoves: MoveId[],
+    onEquipMove: DebugPanelHandlers['onEquipMove'],
+  ): void {
+    this.loadoutBox.innerHTML = '';
+
+    equippedMoves.forEach((moveId, index) => {
+      const label = document.createElement('label');
+      label.className = 'debug-select';
+
+      const title = document.createElement('span');
+      title.textContent = `Move ${index + 1}`;
+
+      const select = document.createElement('select');
+      select.dataset.testid = `debug-move-slot-${index}`;
+
+      moveOptions.forEach((option) => {
+        const element = document.createElement('option');
+        element.value = option.id;
+        element.textContent = option.name;
+        element.selected = option.id === moveId;
+        select.append(element);
+      });
+
+      select.addEventListener('change', () => {
+        onEquipMove(index, select.value as MoveId);
+      });
+
+      label.append(title, select);
+      this.loadoutBox.append(label);
     });
   }
 }

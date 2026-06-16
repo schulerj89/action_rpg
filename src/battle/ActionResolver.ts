@@ -1,9 +1,10 @@
-import type { BattleTunables, PhysicalMoveDefinition } from '../core/types';
+import type { BattleTunables, ChiMoveDefinition, PhysicalMoveDefinition } from '../core/types';
 import type { Combatant } from './Combatant';
 
 export interface ActionResult {
   damage: number;
   defeated: boolean;
+  healing?: number;
 }
 
 export class ActionResolver {
@@ -29,15 +30,25 @@ export class ActionResolver {
     return { damage, defeated: defender.hp <= 0 };
   }
 
-  resolveChi(attacker: Combatant, defender: Combatant): ActionResult {
+  resolveChiDamage(attacker: Combatant, defender: Combatant, move: ChiMoveDefinition): ActionResult {
     const rawDamage =
-      attacker.stats.focus * this.tunables.chiMultiplier +
-      attacker.stats.strength * 2.1 +
-      this.tunables.chiFlatBonus -
+      attacker.stats.focus * move.focusScale +
+      attacker.stats.strength * move.strengthScale +
+      move.flatBonus -
       defender.stats.defense;
     const damage = defender.applyDamage(rawDamage);
 
     return { damage, defeated: defender.hp <= 0 };
+  }
+
+  resolveChiHealing(caster: Combatant, move: ChiMoveDefinition): ActionResult {
+    const rawHealing =
+      caster.stats.focus * move.focusScale +
+      caster.stats.strength * move.strengthScale +
+      move.flatBonus;
+    const healing = caster.heal(rawHealing);
+
+    return { damage: 0, defeated: false, healing };
   }
 
   resolveEnemyAttack(attacker: Combatant, defender: Combatant): ActionResult {

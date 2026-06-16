@@ -29,14 +29,18 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   expect(fpsAfter).not.toEqual(fpsBefore);
   expect(fpsAfter).toMatch(/FPS/i);
 
+  await page.getByTestId('debug-boss-mode').check();
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().bossMode)).toBe(true);
+
   await page.evaluate(() => window.__rpgTest?.movePlayerToBattleTrigger());
   await expect(page.getByTestId('battle-ui')).toBeVisible();
 
   await page.evaluate(() => window.__rpgTest?.forceReady());
-  await expect(page.getByTestId('attack-action')).toBeEnabled();
+  await expect(page.getByTestId('move-slot-0')).toBeEnabled();
 
   const initialEnemyHp = await enemyHp(page);
-  await page.getByTestId('attack-action').click();
+  expect(initialEnemyHp).toBeGreaterThan(500);
+  await page.getByTestId('move-slot-0').click();
   await expect(page.getByTestId('move-banner')).toContainText('Iron Palm Rush');
   await expect.poll(() => enemyHp(page)).toBeLessThan(initialEnemyHp);
 
@@ -49,19 +53,35 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('move-banner')).toContainText('Pulse Ram');
   await expect.poll(() => playerHp(page)).toBeLessThan(heroHpBeforeCounter);
 
+  await page.evaluate(() => {
+    window.__rpgTest?.equipMove(2, 'healingChi');
+    window.__rpgTest?.forceReady();
+  });
+  await expect(page.getByTestId('move-slot-2')).toHaveText('Healing Chi');
+  await expect(page.getByTestId('move-slot-2')).toBeEnabled();
+
+  const heroHpBeforeHeal = await playerHp(page);
+  await page.getByTestId('move-slot-2').click();
+  await expect(page.getByTestId('move-banner')).toContainText('Healing Chi');
+  await expect.poll(() => playerHp(page)).toBeGreaterThan(heroHpBeforeHeal);
+
   await page.evaluate(() => window.__rpgTest?.forceReady());
-  await expect(page.getByTestId('kick-action')).toBeEnabled();
+  await expect(page.getByTestId('move-slot-1')).toBeEnabled();
 
   const afterPunchHp = await enemyHp(page);
-  await page.getByTestId('kick-action').click();
+  await page.getByTestId('move-slot-1').click();
   await expect(page.getByTestId('move-banner')).toContainText('Dragon Heel Kick');
   await expect.poll(() => enemyHp(page)).toBeLessThan(afterPunchHp);
 
-  await page.evaluate(() => window.__rpgTest?.forceReady());
-  await expect(page.getByTestId('chi-action')).toBeEnabled();
+  await page.evaluate(() => {
+    window.__rpgTest?.equipMove(2, 'chiBreaker');
+    window.__rpgTest?.forceReady();
+  });
+  await expect(page.getByTestId('move-slot-2')).toHaveText('Chi Breaker');
+  await expect(page.getByTestId('move-slot-2')).toBeEnabled();
 
   const afterKickHp = await enemyHp(page);
-  await page.getByTestId('chi-action').click();
+  await page.getByTestId('move-slot-2').click();
   await expect(page.getByTestId('move-banner')).toContainText('Chi Breaker');
   await expect.poll(() => enemyHp(page), { timeout: 8_000 }).toBeLessThan(afterKickHp);
 
@@ -69,13 +89,20 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
     window.__rpgTest?.setEnemyHp(1);
     window.__rpgTest?.forceReady();
   });
-  await expect(page.getByTestId('attack-action')).toBeEnabled({ timeout: 8_000 });
-  await page.getByTestId('attack-action').click();
+  await expect(page.getByTestId('move-slot-0')).toBeEnabled({ timeout: 8_000 });
+  await page.getByTestId('move-slot-0').click();
 
   await expect(page.getByTestId('victory-state')).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByTestId('victory-results')).toBeVisible();
+  await expect(page.getByTestId('victory-level-title')).toHaveText('Level Up');
+  await expect(page.getByTestId('victory-level')).toContainText('Level 1 -> 2');
+  await expect(page.getByTestId('victory-xp-progress')).toBeVisible();
+  await expect(page.getByTestId('victory-xp-fill')).toHaveAttribute('style', /--xp-progress: 100%/);
+  await expect(page.getByTestId('victory-xp')).toContainText('XP');
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().battleState))
     .toBe('victory');
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().level)).toBe(2);
 
   await page.getByTestId('reset-battle').click();
   await expect(page.getByTestId('battle-ui')).toBeHidden();

@@ -1,6 +1,9 @@
 import type {
   BattleTunables,
+  ChiMoveDefinition,
+  ChiMoveId,
   HeroStats,
+  MoveId,
   PhysicalMoveDefinition,
   PhysicalMoveId,
 } from '../core/types';
@@ -19,6 +22,14 @@ export const enemyBaseStats: HeroStats = {
   vitality: 28,
   focus: 4,
   defense: 5,
+};
+
+export const bossEnemyStats: HeroStats = {
+  strength: 15,
+  dexterity: 9,
+  vitality: 46,
+  focus: 8,
+  defense: 11,
 };
 
 export const playerPhysicalMoves: Record<PhysicalMoveId, PhysicalMoveDefinition> = {
@@ -48,7 +59,113 @@ export const playerPhysicalMoves: Record<PhysicalMoveId, PhysicalMoveDefinition>
     recoveryMs: 430,
     timeScale: 1.05,
   },
+  tigerHook: {
+    id: 'tigerHook',
+    name: 'Tiger Hook',
+    animation: 'hook',
+    strengthScale: 3.7,
+    dexterityScale: 2.05,
+    flatBonus: 6,
+    chiGain: 9,
+    stopDistance: 1.86,
+    impactDelayMs: 390,
+    recoveryMs: 360,
+    timeScale: 1.2,
+  },
+  risingUppercut: {
+    id: 'risingUppercut',
+    name: 'Rising Uppercut',
+    animation: 'uppercut',
+    strengthScale: 4.75,
+    dexterityScale: 1.15,
+    flatBonus: 8,
+    chiGain: 8,
+    stopDistance: 1.9,
+    impactDelayMs: 430,
+    recoveryMs: 410,
+    timeScale: 1.12,
+  },
+  craneHighKick: {
+    id: 'craneHighKick',
+    name: 'Crane High Kick',
+    animation: 'highKick',
+    strengthScale: 2.9,
+    dexterityScale: 3.2,
+    flatBonus: 12,
+    chiGain: 11,
+    stopDistance: 2.22,
+    impactDelayMs: 520,
+    recoveryMs: 430,
+    timeScale: 1.05,
+  },
+  sweepKick: {
+    id: 'sweepKick',
+    name: 'Lotus Sweep',
+    animation: 'sweepKick',
+    strengthScale: 2.65,
+    dexterityScale: 2.85,
+    flatBonus: 7,
+    chiGain: 12,
+    stopDistance: 2.05,
+    impactDelayMs: 500,
+    recoveryMs: 390,
+    timeScale: 1.08,
+  },
+  lungeSpinKick: {
+    id: 'lungeSpinKick',
+    name: 'Tempest Spin Kick',
+    animation: 'lungeSpinKick',
+    strengthScale: 3.2,
+    dexterityScale: 3.45,
+    flatBonus: 14,
+    chiGain: 13,
+    stopDistance: 2.2,
+    impactDelayMs: 560,
+    recoveryMs: 440,
+    timeScale: 1.05,
+  },
 };
+
+export const playerChiMoves: Record<ChiMoveId, ChiMoveDefinition> = {
+  chiBreaker: {
+    id: 'chiBreaker',
+    name: 'Chi Breaker',
+    kind: 'damage',
+    chiCost: 30,
+    focusScale: 7.5,
+    strengthScale: 2.1,
+    flatBonus: 32,
+    chargeMs: 1250,
+    flashMs: 340,
+    timeScale: 0.82,
+  },
+  healingChi: {
+    id: 'healingChi',
+    name: 'Healing Chi',
+    kind: 'heal',
+    chiCost: 24,
+    focusScale: 5.9,
+    strengthScale: 0.85,
+    flatBonus: 34,
+    chargeMs: 880,
+    flashMs: 180,
+    timeScale: 0.84,
+  },
+};
+
+export const defaultEquippedMoves: MoveId[] = ['ironPalm', 'dragonHeel', 'chiBreaker'];
+
+export const moveDebugOptions: Array<{ id: MoveId; name: string }> = [
+  { id: 'ironPalm', name: 'Iron Palm Rush' },
+  { id: 'dragonHeel', name: 'Dragon Heel Kick' },
+  { id: 'tigerHook', name: 'Tiger Hook' },
+  { id: 'risingUppercut', name: 'Rising Uppercut' },
+  { id: 'craneHighKick', name: 'Crane High Kick' },
+  { id: 'sweepKick', name: 'Lotus Sweep' },
+  { id: 'lungeSpinKick', name: 'Tempest Spin Kick' },
+  { id: 'chiBreaker', name: 'Chi Breaker' },
+  { id: 'healingChi', name: 'Healing Chi' },
+];
 
 export const battleTunables: BattleTunables = {
   atbMax: 100,
@@ -63,5 +180,5 @@ export const battleTunables: BattleTunables = {
   enemyActionDurationMs: 600,
   chiChargeMs: 1450,
   chiFlashMs: 260,
-  victoryHoldMs: 3200,
+  victoryHoldMs: 6500,
 };

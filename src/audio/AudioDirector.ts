@@ -1,104 +1,70 @@
-import { battleMusicAsset } from '../config/assets';
+import {
+  battleMusicAsset,
+  bossMusicAsset,
+  chiChargeSfxAsset,
+  chiImpactSfxAsset,
+  healingSfxAsset,
+  levelUpSfxAsset,
+  victoryMusicAsset,
+} from '../config/assets';
 
 export class AudioDirector {
   private readonly battleMusic = new Audio(battleMusicAsset.url);
-  private audioContext?: AudioContext;
+  private readonly bossMusic = new Audio(bossMusicAsset.url);
+  private readonly victoryMusic = new Audio(victoryMusicAsset.url);
+  private readonly chiChargeSfx = new Audio(chiChargeSfxAsset.url);
+  private readonly chiImpactSfx = new Audio(chiImpactSfxAsset.url);
+  private readonly healingSfx = new Audio(healingSfxAsset.url);
+  private readonly levelUpSfx = new Audio(levelUpSfxAsset.url);
   private muted = false;
-  private pendingBattleMusic = false;
-  private victoryTimers: number[] = [];
+  private pendingTrack?: HTMLAudioElement;
   private status = 'idle';
 
   constructor() {
-    this.battleMusic.loop = true;
-    this.battleMusic.volume = 0.38;
-    this.battleMusic.preload = 'auto';
+    this.configureTrack(this.battleMusic, true, 0.38);
+    this.configureTrack(this.bossMusic, true, 0.42);
+    this.configureTrack(this.victoryMusic, false, 0.56);
+    this.configureSfx(this.chiChargeSfx, 0.58);
+    this.configureSfx(this.chiImpactSfx, 0.62);
+    this.configureSfx(this.healingSfx, 0.66);
+    this.configureSfx(this.levelUpSfx, 0.72);
     window.addEventListener('pointerdown', this.resumePendingMusic, { capture: true });
     window.addEventListener('keydown', this.resumePendingMusic, { capture: true });
   }
 
-  playBattle(): void {
-    if (this.muted) {
-      this.status = 'muted';
-      return;
-    }
-
-    this.stopVictoryFanfare();
-    this.pendingBattleMusic = true;
-    this.battleMusic.currentTime = 0;
-    const playPromise = this.battleMusic.play();
-    this.status = 'playing';
-
-    playPromise.catch(() => {
-      this.status = 'waiting for user gesture';
-      this.pendingBattleMusic = true;
-    });
-
-    playPromise.then(() => {
-      this.pendingBattleMusic = false;
-    });
-  }
-
-  stopBattle(): void {
-    this.pendingBattleMusic = false;
-    this.stopVictoryFanfare();
-    this.battleMusic.pause();
-    this.battleMusic.currentTime = 0;
-    this.status = this.muted ? 'muted' : 'idle';
+  playBattle(isBossBattle = false): void {
+    const track = isBossBattle ? this.bossMusic : this.battleMusic;
+    this.playTrack(track, isBossBattle ? 'boss music' : 'battle music');
   }
 
   playVictory(): void {
-    this.pendingBattleMusic = false;
-    this.battleMusic.pause();
+    this.playTrack(this.victoryMusic, 'victory song');
+  }
 
-    if (this.muted) {
-      this.status = 'muted';
-      return;
-    }
+  playChiCharge(): void {
+    this.playSfx(this.chiChargeSfx);
+  }
 
-    this.stopVictoryFanfare();
-    this.status = 'victory fanfare';
+  playChiImpact(): void {
+    this.playSfx(this.chiImpactSfx);
+  }
 
-    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextCtor) {
-      this.status = 'victory';
-      return;
-    }
+  playHealing(): void {
+    this.playSfx(this.healingSfx);
+  }
 
-    this.audioContext ??= new AudioContextCtor();
-    const context = this.audioContext;
-    const notes = [
-      { frequency: 523.25, start: 0, duration: 0.18 },
-      { frequency: 659.25, start: 0.18, duration: 0.18 },
-      { frequency: 783.99, start: 0.36, duration: 0.22 },
-      { frequency: 1046.5, start: 0.62, duration: 0.42 },
-      { frequency: 1318.51, start: 1.03, duration: 0.55 },
-    ];
+  playLevelUp(): void {
+    this.playSfx(this.levelUpSfx);
+  }
 
-    context.resume().catch(() => {
-      this.status = 'victory waiting for user gesture';
-    });
-
-    notes.forEach((note) => {
-      const timer = window.setTimeout(() => {
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        oscillator.type = 'triangle';
-        oscillator.frequency.value = note.frequency;
-        gain.gain.setValueAtTime(0.0001, context.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.025);
-        gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + note.duration);
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.start();
-        oscillator.stop(context.currentTime + note.duration + 0.02);
-      }, note.start * 1000);
-      this.victoryTimers.push(timer);
-    });
+  stopBattle(): void {
+    this.pendingTrack = undefined;
+    this.stopAllTracks();
+    this.status = this.muted ? 'muted' : 'idle';
   }
 
   mute(): void {
     this.muted = true;
-    this.stopVictoryFanfare();
     this.stopBattle();
   }
 
@@ -106,32 +72,69 @@ export class AudioDirector {
     return this.status;
   }
 
-  private readonly resumePendingMusic = (): void => {
-    if (this.muted || !this.pendingBattleMusic) {
+  private configureTrack(track: HTMLAudioElement, loop: boolean, volume: number): void {
+    track.loop = loop;
+    track.volume = volume;
+    track.preload = 'auto';
+  }
+
+  private configureSfx(track: HTMLAudioElement, volume: number): void {
+    track.loop = false;
+    track.volume = volume;
+    track.preload = 'auto';
+  }
+
+  private playTrack(track: HTMLAudioElement, label: string): void {
+    this.stopAllTracks();
+
+    if (this.muted) {
+      this.status = 'muted';
       return;
     }
 
-    const playPromise = this.battleMusic.play();
-    this.status = 'playing';
+    track.currentTime = 0;
+    const playPromise = track.play();
+    this.pendingTrack = track;
+    this.status = label;
+
     playPromise
       .then(() => {
-        this.pendingBattleMusic = false;
+        this.pendingTrack = undefined;
       })
       .catch(() => {
-        this.status = 'waiting for user gesture';
+        this.status = `${label} waiting for user gesture`;
+      });
+  }
+
+  private stopAllTracks(): void {
+    [this.battleMusic, this.bossMusic, this.victoryMusic].forEach((track) => {
+      track.pause();
+      track.currentTime = 0;
+    });
+  }
+
+  private playSfx(track: HTMLAudioElement): void {
+    if (this.muted) {
+      return;
+    }
+
+    track.pause();
+    track.currentTime = 0;
+    void track.play().catch(() => undefined);
+  }
+
+  private readonly resumePendingMusic = (): void => {
+    if (this.muted || !this.pendingTrack) {
+      return;
+    }
+
+    const playPromise = this.pendingTrack.play();
+    playPromise
+      .then(() => {
+        this.pendingTrack = undefined;
+      })
+      .catch(() => {
+        this.status = `${this.status} waiting for user gesture`;
       });
   };
-
-  private stopVictoryFanfare(): void {
-    this.victoryTimers.forEach((timer) => {
-      window.clearTimeout(timer);
-    });
-    this.victoryTimers = [];
-  }
-}
-
-declare global {
-  interface Window {
-    webkitAudioContext?: typeof AudioContext;
-  }
 }

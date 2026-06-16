@@ -31,6 +31,13 @@ export class Combatant {
     return damage;
   }
 
+  heal(amount: number): number {
+    const healing = Math.max(Math.round(amount), 1);
+    const previousHp = this.hp;
+    this.hp = Math.min(this.hp + healing, this.maxHp);
+    return this.hp - previousHp;
+  }
+
   setHp(value: number): void {
     this.hp = Math.max(Math.min(Math.round(value), this.maxHp), 0);
   }

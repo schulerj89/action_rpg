@@ -36,7 +36,7 @@ export class BattleAnimator {
     hero.faceToward(heroAnchor);
     await tweenVector3(hero.root.position, heroAnchor, this.tunables.returnDurationMs);
     hero.faceToward(enemyPosition);
-    hero.play('idle');
+    hero.play('battleIdle');
   }
 
   async enemyAttack(

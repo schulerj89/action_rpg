@@ -2,7 +2,7 @@ import { Vector3 } from 'three';
 import { AudioDirector } from './audio/AudioDirector';
 import { BattleDirector } from './battle/BattleDirector';
 import { heroAnimationAssets } from './config/assets';
-import { heroBaseStats } from './config/combatConfig';
+import { heroBaseStats, moveDebugOptions } from './config/combatConfig';
 import { FrameStats } from './core/FrameStats';
 import { InputController } from './core/InputController';
 import type { RuntimeDebugInfo } from './core/types';
@@ -52,7 +52,13 @@ export class GameApp {
       trigger: this.trigger,
       vfx: this.vfx,
     });
-    this.debugPanel = new DebugPanel(document, heroBaseStats, {
+    this.debugPanel = new DebugPanel(document, heroBaseStats, moveDebugOptions, this.battle.getEquippedMoves(), false, {
+      onBossModeChange: (enabled) => {
+        this.battle.setBossMode(enabled);
+      },
+      onEquipMove: (slot, moveId) => {
+        this.battle.setEquippedMove(slot, moveId);
+      },
       onForceReady: () => {
         this.battle.forceReady();
       },
@@ -92,7 +98,7 @@ export class GameApp {
     this.updateWorld(deltaSeconds);
     this.hero.update(deltaSeconds);
     this.enemy.update(deltaSeconds);
-    this.vfx.update(deltaSeconds, this.hero.root.position);
+    this.vfx.update(deltaSeconds, this.hero.root.position, this.hero.root.rotation.y);
     this.battle.update(deltaSeconds);
     this.updateDebug();
 
@@ -110,7 +116,7 @@ export class GameApp {
         this.hero.faceToward(this.hero.root.position.clone().add(this.movement));
         this.hero.play('run');
       } else {
-        this.hero.play('idle');
+        this.hero.play('explorationIdle');
       }
 
       this.cameraRig.updateExploration(this.hero.root.position, this.movement, deltaSeconds);
@@ -129,6 +135,7 @@ export class GameApp {
       playerX: this.hero.root.position.x,
       playerZ: this.hero.root.position.z,
       battle,
+      bossMode: this.battle.isBossMode(),
       audioStatus: this.audio.getStatus(),
     };
 
@@ -149,6 +156,9 @@ export class GameApp {
 
   private installTestApi(): void {
     window.__rpgTest = {
+      equipMove: (slot, moveId) => {
+        this.battle.setEquippedMove(slot, moveId);
+      },
       forceReady: () => {
         this.battle.forceReady();
       },
@@ -158,13 +168,18 @@ export class GameApp {
       getState: () => ({
         audioStatus: this.audio.getStatus(),
         battleState: this.battle.getPhase(),
+        bossMode: this.battle.isBossMode(),
         enemyHp: this.battle.enemyCombatant.hp,
+        equippedMoves: this.battle.getEquippedMoves(),
+        level: this.battle.getLevel(),
         playerAtb: this.battle.player.atb,
+        playerChi: this.battle.player.chi,
         playerHp: this.battle.player.hp,
         position: {
           x: this.hero.root.position.x,
           z: this.hero.root.position.z,
         },
+        xpGained: this.battle.getXpGained(),
       }),
       movePlayerToBattleTrigger: () => {
         this.hero.root.position.copy(this.trigger.getPosition());
@@ -175,6 +190,9 @@ export class GameApp {
       },
       setEnemyHp: (value: number) => {
         this.battle.setEnemyHp(value);
+      },
+      setBossMode: (enabled: boolean) => {
+        this.battle.setBossMode(enabled);
       },
       setPlayerPosition: (x: number, z: number) => {
         this.hero.root.position.set(x, 0, z);

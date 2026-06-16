@@ -43,9 +43,9 @@ export class HeroCharacter {
       loaded.set(key, await loader.loadAsync(assets[key]));
     }
 
-    const idleGltf = loaded.get('idle');
+    const idleGltf = loaded.get('explorationIdle');
     if (!idleGltf) {
-      throw new Error('Hero idle GLB failed to load.');
+      throw new Error('Hero exploration idle GLB failed to load.');
     }
 
     const visualRoot = idleGltf.scene;
@@ -70,7 +70,7 @@ export class HeroCharacter {
     });
 
     const hero = new HeroCharacter(root, visualRoot, clips);
-    hero.play('idle');
+    hero.play('explorationIdle');
     return hero;
   }
 

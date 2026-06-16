@@ -3,10 +3,16 @@ import type { HeroAnimationKey } from '../core/types';
 const heroBase = '/assets/hero/Meshy_AI_a_small_chibi_boy_kun_biped_Animation_';
 
 export const heroAnimationAssets: Record<HeroAnimationKey, string> = {
-  idle: `${heroBase}Boxing_Warmup_withSkin.glb`,
+  explorationIdle: '/assets/hero/Meshy_AI_Animation_Idle_3_withSkin.glb',
+  battleIdle: '/assets/hero/Meshy_AI_Animation_Idle_5_withSkin.glb',
   run: `${heroBase}Running_withSkin.glb`,
   attack: `${heroBase}Punch_Combo_2_withSkin.glb`,
   kick: `${heroBase}Spartan_Kick_withSkin.glb`,
+  hook: `${heroBase}Left_Short_Hook_from_Guard_withSkin.glb`,
+  uppercut: `${heroBase}Right_Uppercut_from_Guard_withSkin.glb`,
+  highKick: `${heroBase}Step_in_High_Kick_withSkin.glb`,
+  sweepKick: `${heroBase}Sweeping_Kick_withSkin.glb`,
+  lungeSpinKick: '/assets/hero/Meshy_AI_Animation_Lunge_Spin_Kick_withSkin.glb',
   chi: `${heroBase}mage_soell_cast_withSkin.glb`,
   slam: `${heroBase}Charged_Ground_Slam_withSkin.glb`,
   hit: `${heroBase}Hit_Reaction_1_withSkin.glb`,
@@ -18,5 +24,53 @@ export const battleMusicAsset = {
   url: '/assets/audio/juhani-junkala-epic-boss-battle-loop.wav',
   sourceUrl: 'https://opengameart.org/content/boss-battle-music',
   author: 'SubspaceAudio / Juhani Junkala',
+  license: 'CC0',
+};
+
+export const bossMusicAsset = {
+  title: 'JRPG Epic Rock Battle Theme #1',
+  url: '/assets/audio/hydrogene-jrpg-epic-rock-battle-theme-full.mp3',
+  sourceUrl: 'https://opengameart.org/content/jrpg-epic-rock-battle-theme-1',
+  author: 'HydroGene',
+  license: 'CC0',
+};
+
+export const victoryMusicAsset = {
+  title: 'Victory Theme for RPG',
+  url: '/assets/audio/cynicmusic-victory-theme-for-rpg.mp3',
+  sourceUrl: 'https://opengameart.org/content/victory-theme-for-rpg',
+  author: 'cynicmusic',
+  license: 'CC0',
+};
+
+export const chiChargeSfxAsset = {
+  title: 'Magic Spell SFX - magical_1',
+  url: '/assets/audio/jaggedstone-magical-charge.ogg',
+  sourceUrl: 'https://opengameart.org/content/magic-spell-sfx',
+  author: 'JaggedStone',
+  license: 'CC0',
+};
+
+export const chiImpactSfxAsset = {
+  title: 'Magic Spell SFX - magical_4',
+  url: '/assets/audio/jaggedstone-magical-impact.ogg',
+  sourceUrl: 'https://opengameart.org/content/magic-spell-sfx',
+  author: 'JaggedStone',
+  license: 'CC0',
+};
+
+export const healingSfxAsset = {
+  title: 'Magic Words + Healing Sound Effect - health_restore',
+  url: '/assets/audio/springspring-health-restore.wav',
+  sourceUrl: 'https://opengameart.org/content/magic-words-healing-sound-effect',
+  author: 'Spring Spring',
+  license: 'CC0',
+};
+
+export const levelUpSfxAsset = {
+  title: 'Level up, power up, Coin get - Rise03',
+  url: '/assets/audio/wobbleboxx-level-up-rise.wav',
+  sourceUrl: 'https://opengameart.org/content/level-up-power-up-coin-get-13-sounds',
+  author: 'WobbleBoxx Workshop',
   license: 'CC0',
 };

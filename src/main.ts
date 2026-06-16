@@ -7,6 +7,16 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div class="cinematic-darkener" data-testid="cinematic-darkener"></div>
   <div class="cinematic-flash" data-testid="cinematic-flash"></div>
   <div class="move-banner" data-testid="move-banner" hidden></div>
+  <section class="victory-results" data-testid="victory-results" hidden>
+    <div class="victory-kicker">Victory</div>
+    <h1 data-testid="victory-level-title">Level Up</h1>
+    <div class="victory-level" data-testid="victory-level">Level 1 -> 2</div>
+    <div class="xp-progress" data-testid="victory-xp-progress">
+      <div class="xp-progress-fill" data-testid="victory-xp-fill"></div>
+    </div>
+    <strong data-testid="victory-xp">+0 XP</strong>
+    <span data-testid="victory-total-xp">0 total XP</span>
+  </section>
 
   <section class="battle-ui" data-testid="battle-ui" hidden>
     <div class="combatants">
@@ -29,9 +39,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <div class="battle-log" data-testid="battle-log"></div>
     </div>
     <div class="battle-actions">
-      <button type="button" data-testid="attack-action">Iron Palm</button>
-      <button type="button" data-testid="kick-action">Dragon Heel</button>
-      <button type="button" data-testid="chi-action">Chi Breaker</button>
+      <button type="button" data-testid="move-slot-0">Iron Palm</button>
+      <button type="button" data-testid="move-slot-1">Dragon Heel</button>
+      <button type="button" data-testid="move-slot-2">Chi Breaker</button>
       <button type="button" class="ghost" data-testid="reset-battle">Reset</button>
     </div>
     <div class="victory-state" data-testid="victory-state" hidden>Victory</div>
@@ -43,6 +53,11 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <button type="button" data-testid="debug-start-battle">Start</button>
       <button type="button" data-testid="debug-force-ready">Ready</button>
     </div>
+    <label class="debug-toggle">
+      <input type="checkbox" data-testid="debug-boss-mode" />
+      <span>Boss mode</span>
+    </label>
+    <div class="debug-loadout" data-testid="debug-loadout"></div>
     <div class="stat-sliders" data-testid="stat-sliders"></div>
   </aside>
 
