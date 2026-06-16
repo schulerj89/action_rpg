@@ -41,6 +41,10 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect
     .poll(() => page.evaluate(() => [...(window.__rpgTest?.getState().meshyProps ?? [])].sort()), { timeout: 90_000 })
     .toEqual([
+      'npc-elder',
+      'npc-potion-keeper',
+      'npc-runner',
+      'npc-weapon-smith',
       'potion-shop',
       'potion-shop-sign',
       'town-ground-tile',

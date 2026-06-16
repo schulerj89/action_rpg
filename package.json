@@ -9,6 +9,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "assets:meshy-town": "node tools/meshy/generate-first-town-assets.mjs",
     "assets:meshy-enemies": "node tools/meshy/generate-enemy-assets.mjs",
+    "assets:meshy-town-npcs": "node tools/meshy/generate-town-npc-assets.mjs",
     "smoke": "playwright test",
     "smoke:headed": "playwright test --headed"
   },

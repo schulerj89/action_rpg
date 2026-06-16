@@ -13,6 +13,7 @@ import {
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { enemyAssetDefinitions } from '../../config/enemyAssets';
+import { firstTownAssetDefinitions } from '../../config/townAssets';
 import { createTownNpc } from '../town/TownPrimitiveFactory';
 import { firstTownNpcs } from '../town/firstTownLayout';
 
@@ -45,10 +46,21 @@ export class AssetInspectionRoom {
       return;
     }
     this.loaded = true;
+    const generatedNpcLoads = firstTownNpcs.map((npc, index) => {
+      const definition = firstTownAssetDefinitions.find((asset) => asset.id === npc.assetId);
+      return this.loadModel(
+        npc.assetId,
+        definition?.url ?? '',
+        new Vector3(-5.2 + index * 1.55, 0, -0.7),
+        1.5,
+        0,
+      );
+    });
     await Promise.all([
-      this.loadModel('generated-villager-npc', '/assets/town/first-town/villager-npc.glb', new Vector3(-3.8, 0, -0.5), 1.55),
+      this.loadModel('generated-villager-npc', '/assets/town/first-town/villager-npc.glb', new Vector3(-5.95, 0, -2.9), 1.35, Math.PI),
+      ...generatedNpcLoads,
       ...enemyAssetDefinitions.map((enemy, index) =>
-        this.loadModel(enemy.id, enemy.url, new Vector3(2.8 + index * 2.4, 0, -1.15), 1.65),
+        this.loadModel(enemy.id, enemy.url, new Vector3(2.4 + index * 2.35, 0, -1.15), 1.65, enemy.id.includes('shellback') ? -0.28 : 0.18),
       ),
     ]);
   }
@@ -65,15 +77,24 @@ export class AssetInspectionRoom {
     return [...this.loadStatuses.values()];
   }
 
-  private async loadModel(id: string, url: string, position: Vector3, targetHeight: number): Promise<void> {
+  private async loadModel(
+    id: string,
+    url: string,
+    position: Vector3,
+    targetHeight: number,
+    rotationY = 0,
+  ): Promise<void> {
     this.loadStatuses.set(id, { id, status: 'loading' });
     try {
+      if (!url) {
+        throw new Error(`Missing URL for ${id}`);
+      }
       const gltf = await this.loader.loadAsync(url);
       const model = gltf.scene;
       model.name = id;
       normalizeModel(model, targetHeight);
       model.position.add(position);
-      model.rotation.y = id.includes('shellback') ? -0.28 : 0.18;
+      model.rotation.y = rotationY;
       model.traverse((child) => {
         child.castShadow = false;
         child.receiveShadow = true;

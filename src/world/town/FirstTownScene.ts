@@ -42,6 +42,7 @@ export class FirstTownScene {
   private readonly collision = new CollisionResolver(firstTownColliders);
   private readonly fallbackRoots = new Map<string, Group>();
   private readonly interactions: InteractionTrigger[] = [];
+  private readonly npcBaseRotations = new Map<string, number>();
   private readonly npcRoots = new Map<string, Group>();
 
   constructor() {
@@ -72,6 +73,7 @@ export class FirstTownScene {
     firstTownNpcs.forEach((npc) => {
       const npcRoot = createTownNpc(npc);
       this.npcRoots.set(npc.dialogueId, npcRoot);
+      this.npcBaseRotations.set(npc.dialogueId, npcRoot.rotation.y);
       this.addFallback(npc.id, npcRoot, this.combatHiddenRoot);
       this.interactions.push(
         new InteractionTrigger({
@@ -104,8 +106,9 @@ export class FirstTownScene {
   update(deltaSeconds: number): void {
     this.battleTriggerPad.rotation.z += deltaSeconds * 1.8;
     let index = 0;
-    this.npcRoots.forEach((npc) => {
-      npc.rotation.y = Math.sin(performance.now() * 0.0014 + index) * 0.12;
+    this.npcRoots.forEach((npc, dialogueId) => {
+      const baseRotation = this.npcBaseRotations.get(dialogueId) ?? npc.rotation.y;
+      npc.rotation.y = baseRotation + Math.sin(performance.now() * 0.0014 + index) * 0.08;
       npc.position.y = Math.sin(performance.now() * 0.0021 + index) * 0.025;
       index += 1;
     });
@@ -203,10 +206,22 @@ export class FirstTownScene {
   }
 
   private addNpcAssets(): void {
-    // The first generated villager asset has unreliable face/eye detail when cloned.
-    // Keep it loaded for budget tracking, but use unique primitive NPCs until per-role models are generated.
+    this.assetSystem.markReferenced('villager-npc');
     firstTownNpcs.forEach((npc) => {
-      this.assetSystem.markReferenced(npc.assetId);
+      const model = this.assetSystem.createInstance(npc.assetId, {
+        name: `${npc.id}-meshy`,
+        position: npc.position,
+        rotationY: npc.rotationY,
+        targetHeight: 1.55,
+      });
+      if (!model) {
+        return;
+      }
+
+      this.hideFallback(npc.id);
+      this.npcRoots.set(npc.dialogueId, model);
+      this.npcBaseRotations.set(npc.dialogueId, npc.rotationY ?? 0);
+      this.combatHiddenRoot.add(model);
     });
   }
 

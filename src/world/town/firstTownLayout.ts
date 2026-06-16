@@ -122,7 +122,7 @@ export const firstTownBuildings: TownBuildingLayout[] = [
 export const firstTownNpcs: TownNpcLayout[] = [
   {
     accent: '#f59e0b',
-    assetId: 'villager-npc',
+    assetId: 'npc-weapon-smith',
     body: '#70451f',
     dialogueId: 'weapon_smith',
     id: 'npc-weapon-smith',
@@ -132,7 +132,7 @@ export const firstTownNpcs: TownNpcLayout[] = [
   },
   {
     accent: '#a78bfa',
-    assetId: 'villager-npc',
+    assetId: 'npc-potion-keeper',
     body: '#ffffff',
     dialogueId: 'potion_keeper',
     id: 'npc-potion-keeper',
@@ -142,7 +142,7 @@ export const firstTownNpcs: TownNpcLayout[] = [
   },
   {
     accent: '#93c5fd',
-    assetId: 'villager-npc',
+    assetId: 'npc-elder',
     body: '#3f5f73',
     dialogueId: 'elder',
     id: 'npc-elder',
@@ -152,7 +152,7 @@ export const firstTownNpcs: TownNpcLayout[] = [
   },
   {
     accent: '#fca5a5',
-    assetId: 'villager-npc',
+    assetId: 'npc-runner',
     body: '#5b3a67',
     dialogueId: 'runner',
     id: 'npc-runner',
@@ -162,7 +162,7 @@ export const firstTownNpcs: TownNpcLayout[] = [
   },
 ];
 
-export const firstTownPreloadAssetIds: TownAssetId[] = ['town-ground-tile'];
+export const firstTownPreloadAssetIds: TownAssetId[] = ['town-ground-tile', 'villager-npc'];
 
 export const firstTownGroundAssets: TownAssetPlacement[] = [
   {
@@ -418,26 +418,31 @@ const wallPoses: TownDebugPose[] = [
   },
 ];
 
-const npcPoses = firstTownNpcs.flatMap((npc, index) => [
-  {
-    id: `npc.close.${npc.dialogueId}`,
-    label: `${npc.name} full-body`,
-    player: npc.position.clone().add(new Vector3(-2.7, 0, 1.75)),
-    yaw: -Math.PI * 0.35,
-    camera: npc.position.clone().add(new Vector3(2.35, 1.72, 3.05)),
-    lookAt: npc.position.clone().add(new Vector3(0, 0.9, 0)),
-    fov: 32,
-  },
-  {
-    id: `npc.line.${npc.dialogueId}`,
-    label: `${npc.name} lineup angle`,
-    player: new Vector3(-1.8 + index * 1.2, 0, 5.0),
-    yaw: Math.PI,
-    camera: new Vector3(0, 2.35, 7.1),
-    lookAt: new Vector3(0, 1.05, 2.45),
-    fov: 45,
-  },
-] satisfies TownDebugPose[]);
+const npcPoses = firstTownNpcs.flatMap((npc, index) => {
+  const yaw = npc.rotationY ?? 0;
+  const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw)).normalize();
+  const right = new Vector3(forward.z, 0, -forward.x).normalize();
+  return [
+    {
+      id: `npc.close.${npc.dialogueId}`,
+      label: `${npc.name} full-body`,
+      player: npc.position.clone().addScaledVector(forward, 2.25).addScaledVector(right, -0.55),
+      yaw: yaw + Math.PI,
+      camera: npc.position.clone().addScaledVector(forward, 3.05).addScaledVector(right, 0.42).setY(1.72),
+      lookAt: npc.position.clone().add(new Vector3(0, 0.9, 0)),
+      fov: 32,
+    },
+    {
+      id: `npc.line.${npc.dialogueId}`,
+      label: `${npc.name} lineup angle`,
+      player: new Vector3(-1.8 + index * 1.2, 0, 5.0),
+      yaw: Math.PI,
+      camera: new Vector3(0, 2.35, 7.1),
+      lookAt: new Vector3(0, 1.05, 2.45),
+      fov: 45,
+    },
+  ] satisfies TownDebugPose[];
+});
 
 export const firstTownDebugPoses: TownDebugPose[] = [
   {

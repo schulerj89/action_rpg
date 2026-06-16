@@ -167,7 +167,7 @@ export class DebugPanel {
       `FPS ${info.fps.toFixed(0)} (${info.frameMs.toFixed(1)} ms)`,
       `Scene ${info.sceneId} Draws ${info.renderCalls}`,
       `GPU Tri ${info.renderTriangles} Geo ${info.renderGeometries} Tex ${info.renderTextures}`,
-      `Town GLB ${info.townAssetsLoaded}/9${info.townAssetsLoading ? ' loading' : ''} Fail ${info.townAssetsFailed}`,
+      `Town GLB ${info.townAssetsLoaded}${info.townAssetsLoading ? ' loading' : ''} Fail ${info.townAssetsFailed}`,
       `Camera ${info.cameraMode}${info.cameraPreset ? ` ${info.cameraPreset}` : ''}`,
       `Weather ${info.weatherMode} Part ${info.weatherParticles}`,
       `State ${info.battle.phase}`,

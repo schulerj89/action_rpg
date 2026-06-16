@@ -7,7 +7,11 @@ export type TownAssetId =
   | 'potion-shop'
   | 'potion-shop-sign'
   | 'village-house'
-  | 'villager-npc';
+  | 'villager-npc'
+  | 'npc-weapon-smith'
+  | 'npc-potion-keeper'
+  | 'npc-elder'
+  | 'npc-runner';
 
 export interface TownAssetDefinition {
   id: TownAssetId;
@@ -24,4 +28,8 @@ export const firstTownAssetDefinitions: TownAssetDefinition[] = [
   { id: 'potion-shop-sign', url: '/assets/town/first-town/potion-shop-sign.glb' },
   { id: 'village-house', url: '/assets/town/first-town/village-house.glb' },
   { id: 'villager-npc', url: '/assets/town/first-town/villager-npc.glb' },
+  { id: 'npc-weapon-smith', url: '/assets/town/first-town/npcs/npc-weapon-smith.glb' },
+  { id: 'npc-potion-keeper', url: '/assets/town/first-town/npcs/npc-potion-keeper.glb' },
+  { id: 'npc-elder', url: '/assets/town/first-town/npcs/npc-elder.glb' },
+  { id: 'npc-runner', url: '/assets/town/first-town/npcs/npc-runner.glb' },
 ];
