@@ -1,0 +1,6 @@
+{
+  "name": "first-town-ground-tile",
+  "prompt": "Stylized low-poly fantasy RPG ground tile. Square grassy dirt path tile, flat terrain piece with painted grass edge and central worn path, repeatable game prop, no tall plants, no text.",
+  "targetPath": "public/assets/town/first-town/town-ground-tile.glb",
+  "notes": "Optional textured overlay above the primitive ground; primitive ground remains the broad collision/performance baseline."
+}

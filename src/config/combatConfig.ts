@@ -165,6 +165,7 @@ export const playerChiMoves: Record<ChiMoveId, ChiMoveDefinition> = {
     name: 'Astral Cascade',
     kind: 'damage',
     special: 'mageRanged',
+    tone: 'magic',
     animation: 'mageCast7',
     chiCost: 36,
     focusScale: 8.2,
@@ -173,6 +174,21 @@ export const playerChiMoves: Record<ChiMoveId, ChiMoveDefinition> = {
     chargeMs: 1500,
     flashMs: 420,
     timeScale: 0.78,
+  },
+  thunderfall: {
+    id: 'thunderfall',
+    name: 'Thunderfall',
+    kind: 'damage',
+    special: 'thunder',
+    tone: 'thunder',
+    animation: 'slam',
+    chiCost: 28,
+    focusScale: 7.1,
+    strengthScale: 0.42,
+    flatBonus: 38,
+    chargeMs: 1100,
+    flashMs: 340,
+    timeScale: 0.86,
   },
   chiBreaker: {
     id: 'chiBreaker',
@@ -188,8 +204,9 @@ export const playerChiMoves: Record<ChiMoveId, ChiMoveDefinition> = {
   },
   healingChi: {
     id: 'healingChi',
-    name: 'Healing Chi',
+    name: 'Cure',
     kind: 'heal',
+    tone: 'healing',
     chiCost: 24,
     focusScale: 5.9,
     strengthScale: 0.85,
@@ -201,7 +218,7 @@ export const playerChiMoves: Record<ChiMoveId, ChiMoveDefinition> = {
 };
 
 export const defaultEquippedMoves: MoveId[] = ['ironPalm', 'dragonHeel', 'chiBreaker'];
-export const mageDefaultEquippedMoves: MoveId[] = ['spiritFlare', 'starfallHex', 'astralCascade'];
+export const mageDefaultEquippedMoves: MoveId[] = ['spiritFlare', 'thunderfall', 'astralCascade'];
 
 export const moveDebugOptions: Array<{ id: MoveId; name: string }> = [
   { id: 'ironPalm', name: 'Iron Palm Rush' },
@@ -214,8 +231,9 @@ export const moveDebugOptions: Array<{ id: MoveId; name: string }> = [
   { id: 'spiritFlare', name: 'Spirit Flare' },
   { id: 'starfallHex', name: 'Starfall Hex' },
   { id: 'astralCascade', name: 'Astral Cascade' },
+  { id: 'thunderfall', name: 'Thunderfall' },
   { id: 'chiBreaker', name: 'Chi Breaker' },
-  { id: 'healingChi', name: 'Healing Chi' },
+  { id: 'healingChi', name: 'Cure' },
 ];
 
 export const battleTunables: BattleTunables = {

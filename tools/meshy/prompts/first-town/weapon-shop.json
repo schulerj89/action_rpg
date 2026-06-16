@@ -1,0 +1,6 @@
+{
+  "name": "first-town-weapon-shop",
+  "prompt": "Stylized low-poly chibi fantasy RPG weapons shop. Compact warm wood and stone building, red roof, crossed sword sign, simple readable silhouette, game-ready prop, no text, no logo, no characters.",
+  "targetPath": "public/assets/town/first-town/weapon-shop.glb",
+  "notes": "Keep as a modular prop with separate simple AABB collision in code."
+}

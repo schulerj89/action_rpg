@@ -23,6 +23,7 @@ interface BaseHeroDefinition extends HeroBattleDefinition {
   attachments?: Array<{
     boneName: string;
     followMode?: 'bone' | 'handWorld';
+    id?: string;
     position?: [number, number, number];
     rotation?: [number, number, number];
     scale?: number;
@@ -75,15 +76,16 @@ export const supportHeroDefinitions: SupportHeroDefinition[] = [
       {
         boneName: 'RightHand',
         followMode: 'handWorld',
-        position: [0.22, -0.58, 0.22],
-        rotation: [0.1, 0.08, -0.22],
-        scale: 1.65,
+        id: 'staff',
+        position: [0.62, -0.2, -0.12],
+        rotation: [0.08, -0.28, -0.44],
+        scale: 2.15,
         url: mageStaffAsset.url,
       },
     ],
     stats: mageBaseStats,
     defaultMoves: mageDefaultEquippedMoves,
-    allowedMoves: ['spiritFlare', 'starfallHex', 'healingChi', 'astralCascade'],
+    allowedMoves: ['spiritFlare', 'thunderfall', 'starfallHex', 'healingChi', 'astralCascade'],
     battleOffset: {
       side: -1.35,
       back: 0.72,

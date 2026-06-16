@@ -27,6 +27,7 @@ interface HeroCharacterLoadConfig {
 export interface HeroAttachmentConfig {
   boneName: string;
   followMode?: 'bone' | 'handWorld';
+  id?: string;
   position?: [number, number, number];
   rotation?: [number, number, number];
   scale?: number;
@@ -39,6 +40,10 @@ export class HeroCharacter {
   private readonly mixer: AnimationMixer;
   private readonly actions = new Map<HeroAnimationKey, AnimationAction>();
   private readonly bones = new Map<string, Object3D>();
+  private readonly attachmentDebugObjects: Array<{
+    id: string;
+    object: Object3D;
+  }> = [];
   private readonly followedAttachments: Array<{
     bone: Object3D;
     object: Object3D;
@@ -46,6 +51,7 @@ export class HeroCharacter {
     rotation: [number, number, number];
   }> = [];
   private readonly attachmentPosition = new Vector3();
+  private readonly bounds = new Box3();
   private currentAction?: AnimationAction;
   private currentKey?: HeroAnimationKey;
 
@@ -180,6 +186,35 @@ export class HeroCharacter {
     return target.copy(this.root.position).add(new Vector3(-0.32, 0.16, 0).applyAxisAngle(new Vector3(0, 1, 0), this.root.rotation.y));
   }
 
+  getAttachmentDebugState(): Array<{
+    bounds: {
+      max: { x: number; y: number; z: number };
+      min: { x: number; y: number; z: number };
+    };
+    id: string;
+    visible: boolean;
+  }> {
+    return this.attachmentDebugObjects.map((attachment) => {
+      this.bounds.setFromObject(attachment.object);
+      return {
+        bounds: {
+          max: {
+            x: roundDebug(this.bounds.max.x),
+            y: roundDebug(this.bounds.max.y),
+            z: roundDebug(this.bounds.max.z),
+          },
+          min: {
+            x: roundDebug(this.bounds.min.x),
+            y: roundDebug(this.bounds.min.y),
+            z: roundDebug(this.bounds.min.z),
+          },
+        },
+        id: attachment.id,
+        visible: this.root.visible && attachment.object.visible,
+      };
+    });
+  }
+
   private async attachProp(loader: GLTFLoader, config: HeroAttachmentConfig): Promise<void> {
     const bone = this.bones.get(config.boneName);
     if (!bone) {
@@ -191,12 +226,16 @@ export class HeroCharacter {
     prop.traverse((child) => {
       child.visible = true;
       child.frustumCulled = false;
-      child.castShadow = true;
-      child.receiveShadow = true;
+      child.castShadow = false;
+      child.receiveShadow = false;
     });
     prop.position.fromArray(config.position ?? [0, 0, 0]);
     prop.rotation.fromArray(config.rotation ?? [0, 0, 0]);
     prop.scale.setScalar(config.scale ?? 1);
+    this.attachmentDebugObjects.push({
+      id: config.id ?? config.boneName,
+      object: prop,
+    });
     if (config.followMode === 'handWorld') {
       this.root.add(prop);
       this.followedAttachments.push({
@@ -218,6 +257,10 @@ export class HeroCharacter {
       attachment.object.rotation.fromArray(attachment.rotation);
     });
   }
+}
+
+function roundDebug(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }
 
 function normalizeAngle(angle: number): number {

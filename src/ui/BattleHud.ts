@@ -245,7 +245,7 @@ export class BattleHud {
     window.clearTimeout(this.bannerTimer);
     this.moveBanner.textContent = `${actorName}: ${moveName}`;
     this.moveBanner.hidden = false;
-    this.moveBanner.classList.remove('pop', 'player', 'enemy', 'chi', 'healing');
+    this.moveBanner.classList.remove('pop', 'player', 'enemy', 'chi', 'healing', 'magic', 'thunder');
     this.moveBanner.classList.add(tone);
     void this.moveBanner.offsetWidth;
     this.moveBanner.classList.add('pop');
@@ -274,7 +274,9 @@ export class BattleHud {
         slot.status.textContent = 'Removed';
       } else {
         const ready = member.canAct ? ' Ready' : '';
-        slot.status.textContent = `${member.role} ${member.hp}/${member.maxHp} HP ${member.chi} Chi ${Math.round(
+        slot.status.textContent = `${member.role} ${member.hp}/${member.maxHp} HP ${member.chi} ${resourceName(
+          member.role,
+        )} ${Math.round(
           member.atb,
         )} ATB${ready}`;
       }
@@ -292,6 +294,10 @@ export class BattleHud {
     this.victoryState.hidden = snapshot.phase !== 'victory';
     this.playerAtbFill.style.setProperty('--atb-progress', `${Math.min(snapshot.player.atb, 100)}%`);
   }
+}
+
+function resourceName(role: string): string {
+  return role === 'Mage' ? 'Mana' : 'Chi';
 }
 
 function formatStatName(stat: LevelUpGain['stat']): string {

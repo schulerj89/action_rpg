@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
 test('RPG sandbox battle path loads, resolves actions, wins, and resets', async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   const errors: string[] = [];
+  const assetErrors: string[] = [];
 
   page.on('pageerror', (error) => {
     errors.push(error.message);
@@ -12,13 +13,61 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
       errors.push(message.text());
     }
   });
+  page.on('response', (response) => {
+    if (response.status() >= 400 && /\/assets\//.test(response.url())) {
+      assetErrors.push(`${response.status()} ${response.url()}`);
+    }
+  });
+  await page.route('**/town-ground-tile.glb', async (route) => {
+    await page.waitForTimeout(900);
+    await route.continue();
+  });
 
   await page.goto('/');
 
   await expect(page.getByTestId('game-canvas')).toBeVisible();
   await expect(page.getByTestId('debug-stats')).toBeVisible();
   await expect(page.getByTestId('loading-state')).toBeHidden({ timeout: 45_000 });
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().sceneId)).toBe('first-town');
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().npcIds))
+    .toEqual(['weapon_smith', 'potion_keeper', 'elder', 'runner']);
   await expect(page.getByTestId('title-screen')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().townAssetInfo.loading)).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => [...(window.__rpgTest?.getState().meshyProps ?? [])].sort()), { timeout: 90_000 })
+    .toEqual([
+      'potion-shop',
+      'potion-shop-sign',
+      'town-ground-tile',
+      'town-wall-segment',
+      'town-well',
+      'village-house',
+      'villager-npc',
+      'weapon-shop',
+      'weapon-shop-sign',
+    ]);
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().townAssetInfo.failed)).toEqual([]);
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().townAssetInfo.loading)).toBe(false);
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().townAssetInfo.instanceCounts['town-wall-segment']))
+    .toBeGreaterThan(10);
+  const titleBox = await page.locator('.title-stack h1').boundingBox();
+  const startBox = await page.getByTestId('title-start').boundingBox();
+  expect(Math.abs((titleBox?.x ?? 0) + (titleBox?.width ?? 0) / 2 - ((startBox?.x ?? 0) + (startBox?.width ?? 0) / 2))).toBeLessThan(12);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(100);
+  const mobileTitleBox = await page.locator('.title-stack h1').boundingBox();
+  const mobileStartBox = await page.getByTestId('title-start').boundingBox();
+  expect(
+    Math.abs(
+      (mobileTitleBox?.x ?? 0) +
+        (mobileTitleBox?.width ?? 0) / 2 -
+        ((mobileStartBox?.x ?? 0) + (mobileStartBox?.width ?? 0) / 2),
+    ),
+  ).toBeLessThan(12);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.waitForTimeout(100);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('title-menu-panel')).toBeVisible();
@@ -36,6 +85,19 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await page.waitForTimeout(900);
   const fpsAfter = await page.getByTestId('debug-stats').textContent();
   expect(fpsAfter).toMatch(/FPS/i);
+  expect(await page.evaluate(() => window.__rpgTest?.getState().renderInfo.calls)).toBeLessThan(140);
+
+  await page.evaluate(() => window.__rpgTest?.interactWithNpc('elder'));
+  await expect(page.getByTestId('dialogue-box')).toBeVisible();
+  await expect(page.getByTestId('dialogue-speaker')).toHaveText('Elder Ren');
+  await expect(page.getByTestId('dialogue-text')).toContainText('Aetherwake');
+  const dialogueBox = await page.getByTestId('dialogue-box').boundingBox();
+  const debugBox = await page.getByTestId('debug-panel').boundingBox();
+  expect((dialogueBox?.x ?? 0) + (dialogueBox?.width ?? 0)).toBeLessThan((debugBox?.x ?? 0) - 8);
+  await page.getByTestId('dialogue-next').click();
+  await expect(page.getByTestId('dialogue-text')).toContainText('thunder');
+  await page.getByTestId('dialogue-next').click();
+  await expect(page.getByTestId('dialogue-box')).toBeHidden();
 
   const startPosition = await page.evaluate(() => window.__rpgTest?.getState().position);
   await page.keyboard.down('ArrowUp');
@@ -72,7 +134,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
   await page.getByTestId('debug-hero-select').selectOption('mira');
   await expect(page.getByTestId('debug-move-slot-0')).toHaveValue('spiritFlare');
-  await expect(page.getByTestId('debug-move-slot-1')).toHaveValue('starfallHex');
+  await expect(page.getByTestId('debug-move-slot-1')).toHaveValue('thunderfall');
   await expect(page.getByTestId('debug-move-slot-2')).toHaveValue('astralCascade');
   await expect(page.getByTestId('debug-mira-dexterity')).toHaveValue('17');
   await page.getByTestId('debug-hero-select').selectOption('ryuji');
@@ -83,8 +145,19 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
   await page.evaluate(() => window.__rpgTest?.movePlayerToBattleTrigger());
   await expect(page.getByTestId('battle-ui')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().townOccludersVisible)).toBe(false);
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().position.z)).toBeLessThan(-18);
   await expect(page.getByTestId('ally-slot-0-name')).toHaveText('Mira Sol');
   await expect(page.getByTestId('ally-slot-0-status')).toContainText('Mage');
+  await expect(page.getByTestId('ally-slot-0-status')).toContainText('Mana');
+  await expect(page.getByTestId('ally-slot-0-status')).not.toContainText('Chi');
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().visualState.attachments.mira?.find((item) => item.id === 'staff')?.visible))
+    .toBe(true);
+  const staffBounds = await page.evaluate(() =>
+    window.__rpgTest?.getState().visualState.attachments.mira?.find((item) => item.id === 'staff')?.bounds,
+  );
+  expect((staffBounds?.max.y ?? 0) - (staffBounds?.min.y ?? 0)).toBeGreaterThan(0.4);
 
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().battleState))
@@ -102,16 +175,34 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   const enemyHpBeforeMira = await enemyHp(page);
   await page.getByTestId('move-slot-0').click();
   await expect(page.getByTestId('move-banner')).toContainText('Mira Sol: Spirit Flare');
-  await expect(page.getByTestId('move-banner')).toHaveClass(/chi/);
+  await expect(page.getByTestId('move-banner')).toHaveClass(/magic/);
+  await expect(page.getByTestId('move-banner')).not.toContainText('Chi');
   await expect.poll(() => enemyHp(page)).toBeLessThan(enemyHpBeforeMira);
   await waitForActionRecovery(page);
 
   await page.evaluate(() => window.__rpgTest?.forceHeroReady('mira'));
+  await expect(page.getByTestId('move-slot-1')).toHaveText('Thunderfall');
+  await expect(page.getByTestId('move-slot-1')).toBeEnabled();
+  const enemyHpBeforeThunder = await enemyHp(page);
+  await page.getByTestId('move-slot-1').click();
+  await expect(page.getByTestId('move-banner')).toContainText('Thunderfall');
+  await expect(page.getByTestId('move-banner')).toHaveClass(/thunder/);
+  await expect.poll(() => enemyHp(page), { timeout: 8_000 }).toBeLessThan(enemyHpBeforeThunder);
+  await waitForActionRecovery(page);
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().visualState.attachments.mira?.find((item) => item.id === 'staff')?.visible))
+    .toBe(true);
+  await page.evaluate(() => {
+    window.__rpgTest?.setEnemyHp(460);
+    window.__rpgTest?.equipHeroMove('mira', 1, 'starfallHex');
+    window.__rpgTest?.forceHeroReady('mira');
+  });
   await expect(page.getByTestId('move-slot-1')).toHaveText('Starfall Hex');
   await expect(page.getByTestId('move-slot-1')).toBeEnabled();
   const enemyHpBeforeStarfall = await enemyHp(page);
   await page.getByTestId('move-slot-1').click();
   await expect(page.getByTestId('move-banner')).toContainText('Starfall Hex');
+  await expect(page.getByTestId('move-banner')).toHaveClass(/magic/);
   await expect.poll(() => enemyHp(page), { timeout: 8_000 }).toBeLessThan(enemyHpBeforeStarfall);
   await waitForActionRecovery(page);
   await page.evaluate(() => window.__rpgTest?.setEnemyHp(420));
@@ -122,7 +213,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   const enemyHpBeforeMageSpecial = await enemyHp(page);
   await page.getByTestId('move-slot-2').click();
   await expect(page.getByTestId('move-banner')).toContainText('Astral Cascade');
-  await expect(page.getByTestId('move-banner')).toHaveClass(/chi/);
+  await expect(page.getByTestId('move-banner')).toHaveClass(/magic/);
   await expect.poll(() => enemyHp(page), { timeout: 8_000 }).toBeLessThan(enemyHpBeforeMageSpecial);
   await waitForActionRecovery(page);
   await page.evaluate(() => window.__rpgTest?.setEnemyHp(320));
@@ -143,12 +234,12 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
     window.__rpgTest?.equipMove(2, 'healingChi');
     window.__rpgTest?.forceReady();
   });
-  await expect(page.getByTestId('move-slot-2')).toHaveText('Healing Chi');
+  await expect(page.getByTestId('move-slot-2')).toHaveText('Cure');
   await expect(page.getByTestId('move-slot-2')).toBeEnabled();
 
   const heroHpBeforeHeal = await playerHp(page);
   await page.getByTestId('move-slot-2').click();
-  await expect(page.getByTestId('move-banner')).toContainText('Healing Chi');
+  await expect(page.getByTestId('move-banner')).toContainText('Cure');
   await expect(page.getByTestId('move-banner')).toHaveClass(/healing/);
   await expect.poll(() => playerHp(page)).toBeGreaterThan(heroHpBeforeHeal);
   await waitForActionRecovery(page);
@@ -206,6 +297,10 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().battleState))
     .toBe('exploration');
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().townOccludersVisible)).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().position.z))
+    .toBeGreaterThan(6);
 
   await expect(page.getByTestId('debug-test-faint')).toBeVisible();
   await page.getByTestId('debug-test-faint').click();
@@ -222,6 +317,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
     .toBe('exploration');
 
   expect(errors).toEqual([]);
+  expect(assetErrors).toEqual([]);
 });
 
 async function enemyHp(page: { getByTestId: (testId: string) => { textContent: () => Promise<string | null> } }) {

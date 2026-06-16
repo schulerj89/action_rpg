@@ -1,0 +1,6 @@
+{
+  "name": "first-town-potion-shop",
+  "prompt": "Stylized low-poly chibi fantasy RPG potion store. Compact white plaster and warm wood building, purple roof, bottle sign, small potion shelf details, readable silhouette, no text, no logo, no characters.",
+  "targetPath": "public/assets/town/first-town/potion-shop.glb",
+  "notes": "Use as a modular shop prop; keep bottles simple and texture sizes low."
+}

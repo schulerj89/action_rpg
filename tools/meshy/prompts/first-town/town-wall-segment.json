@@ -1,0 +1,6 @@
+{
+  "name": "first-town-wall-segment",
+  "prompt": "Stylized low-poly fantasy RPG town wall segment. Stone base with warm wooden posts, compact repeatable barrier piece, flat ends for tiling, no gate, no readable text, isolated prop.",
+  "targetPath": "public/assets/town/first-town/town-wall-segment.glb",
+  "notes": "Duplicated by the first-town asset layout to form the town barrier while leaving a north gate opening."
+}

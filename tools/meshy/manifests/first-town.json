@@ -1,0 +1,73 @@
+{
+  "apiKeyFile": "C:/Users/joshs/Projects/meshy-api-key.txt",
+  "outputDir": "public/assets/town/first-town",
+  "metadataDir": "tools/meshy/generated/first-town",
+  "defaultModel": "meshy-6",
+  "defaultTargetFormats": ["glb"],
+  "maxAssetBytes": 18000000,
+  "assets": [
+    {
+      "id": "town-well",
+      "fileName": "town-well.glb",
+      "targetPolycount": 1400,
+      "prompt": "stylized low-poly fantasy town well game prop, circular stone base, small wooden roof, friendly chibi RPG style, isolated, no text, no logo, simple readable silhouette",
+      "texturePrompt": "warm gray stone well with clean wooden roof, bright friendly fantasy RPG colors, no text, no logo, low detail game-ready materials"
+    },
+    {
+      "id": "weapon-shop-sign",
+      "fileName": "weapon-shop-sign.glb",
+      "targetPolycount": 900,
+      "prompt": "stylized low-poly fantasy weapon shop sign game prop, small hanging wooden sign with crossed swords symbol, chibi RPG style, isolated, no readable text, no logo",
+      "texturePrompt": "warm wooden sign, brass trim, crossed sword icon shapes, clean readable game prop, no letters, no logo"
+    },
+    {
+      "id": "potion-shop-sign",
+      "fileName": "potion-shop-sign.glb",
+      "targetPolycount": 900,
+      "prompt": "stylized low-poly fantasy potion shop sign game prop, small hanging wooden sign with potion bottle symbol, chibi RPG style, isolated, no readable text, no logo",
+      "texturePrompt": "warm wooden sign, purple potion bottle icon shapes, clean readable game prop, no letters, no logo"
+    },
+    {
+      "id": "weapon-shop",
+      "fileName": "weapon-shop.glb",
+      "targetPolycount": 3200,
+      "prompt": "stylized low-poly chibi fantasy RPG weapons shop building, detailed warm wood and stone construction, red roof, awning, weapon racks, crossed swords sign shape, readable game-ready silhouette, no readable text, no characters, isolated prop",
+      "texturePrompt": "warm brown wood walls, light gray stone base, red roof tiles, brass crossed-sword sign shapes, dark door, friendly fantasy RPG colors, no letters, no logo"
+    },
+    {
+      "id": "potion-shop",
+      "fileName": "potion-shop.glb",
+      "targetPolycount": 3200,
+      "prompt": "stylized low-poly chibi fantasy RPG potion store building, detailed white plaster and warm wood construction, purple roof, potion shelves, round bottle sign shape, readable game-ready silhouette, no readable text, no characters, isolated prop",
+      "texturePrompt": "white plaster and warm wood, purple roof tiles, colorful potion bottle sign shapes, friendly fantasy RPG colors, no letters, no logo"
+    },
+    {
+      "id": "village-house",
+      "fileName": "village-house.glb",
+      "targetPolycount": 2600,
+      "prompt": "stylized low-poly chibi fantasy RPG village house, compact cottage with timber frame, teal cloth awning, flower box, lantern, simple readable silhouette, no readable text, no characters, isolated prop",
+      "texturePrompt": "warm tan plaster, dark timber beams, teal awning, small bright flowers, amber lantern, friendly fantasy RPG colors, no letters, no logo"
+    },
+    {
+      "id": "villager-npc",
+      "fileName": "villager-npc.glb",
+      "targetPolycount": 1800,
+      "prompt": "stylized low-poly chibi fantasy RPG villager NPC placeholder, neutral standing idle pose, simple tunic, friendly face, readable from behind-the-back camera, no weapons, no readable text, no logo",
+      "texturePrompt": "friendly villager colors, simple cloth tunic, soft face, clean game-ready materials, no letters, no logo"
+    },
+    {
+      "id": "town-wall-segment",
+      "fileName": "town-wall-segment.glb",
+      "targetPolycount": 1200,
+      "prompt": "stylized low-poly fantasy RPG town wall segment, stone base with warm wooden posts, compact repeatable barrier piece, flat ends for tiling, no gate, no readable text, isolated prop",
+      "texturePrompt": "warm gray stone blocks, dark brown wooden posts, mossy edges, clean low-poly game texture, no letters, no logo"
+    },
+    {
+      "id": "town-ground-tile",
+      "fileName": "town-ground-tile.glb",
+      "targetPolycount": 900,
+      "prompt": "stylized low-poly fantasy RPG ground tile, square grassy dirt path tile, flat terrain piece with painted grass edge and central worn path, repeatable game prop, no plants taller than ankle, no text",
+      "texturePrompt": "green grass border, warm tan dirt path, soft painted fantasy RPG ground colors, clean low-poly texture, no letters, no logo"
+    }
+  ]
+}

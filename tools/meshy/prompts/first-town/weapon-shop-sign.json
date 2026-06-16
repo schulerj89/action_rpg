@@ -1,0 +1,6 @@
+{
+  "name": "first-town-weapon-shop-sign",
+  "prompt": "Stylized low-poly fantasy weapon shop sign game prop. Small hanging wooden sign with crossed swords symbol, chibi RPG style, isolated, no readable text, no logo.",
+  "targetPath": "public/assets/town/first-town/weapon-shop-sign.glb",
+  "notes": "Optional readable symbol prop layered onto the weapons shop if the full building silhouette needs help."
+}

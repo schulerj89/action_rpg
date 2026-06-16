@@ -14,6 +14,7 @@ import type {
   ChiMoveDefinition,
   HeroStats,
   LevelUpGain,
+  MoveBannerTone,
   MoveId,
   PhysicalMoveDefinition,
   StatKey,
@@ -76,6 +77,7 @@ interface BattleDirectorDeps {
   enemy: EnemyShape;
   hud: BattleHud;
   party: BattlePartyMemberConfig[];
+  resetPosition: Vector3;
   trigger: EncounterTrigger;
   vfx: VfxController;
 }
@@ -89,12 +91,13 @@ export class BattleDirector {
   private readonly enemy: EnemyShape;
   private readonly hero: HeroCharacter;
   private readonly hud: BattleHud;
+  private readonly resetPosition: Vector3;
   private readonly trigger: EncounterTrigger;
   private readonly vfx: VfxController;
   private readonly atb = new ATBController(battleTunables);
   private readonly resolver = new ActionResolver(battleTunables);
   private readonly animator = new BattleAnimator(battleTunables);
-  private readonly enemyAnchor = new Vector3(0, 1.05, -12);
+  private readonly enemyAnchor = new Vector3(0, 1.05, -31.5);
   private readonly partyActors: PartyActor[];
   private readonly playerActor: PartyActor;
 
@@ -111,6 +114,7 @@ export class BattleDirector {
     this.cameraRig = deps.cameraRig;
     this.enemy = deps.enemy;
     this.hud = deps.hud;
+    this.resetPosition = deps.resetPosition.clone();
     this.trigger = deps.trigger;
     this.vfx = deps.vfx;
     this.partyActors = deps.party.map((member) => ({
@@ -257,6 +261,7 @@ export class BattleDirector {
     }
 
     this.atb.forceReady(this.enemyCombatant);
+    void this.executeEnemyAction();
   }
 
   setEnemyHp(value: number): void {
@@ -295,7 +300,7 @@ export class BattleDirector {
     this.hud.hideGameOver();
     this.hud.setBattleVisible(false);
     this.audio.stopBattle();
-    this.hero.root.position.set(0, 0, 0);
+    this.hero.root.position.copy(this.resetPosition);
     this.trigger.reset();
     this.cameraRig.setExploration();
     this.logLine = 'Run to the glowing ring.';
@@ -505,7 +510,7 @@ export class BattleDirector {
     }
 
     if (!actor.combatant.spendChi(move.chiCost)) {
-      this.logLine = 'Not enough Chi.';
+      this.logLine = `Not enough ${this.resourceName(actor)}.`;
       this.hud.update(this.snapshot());
       return;
     }
@@ -520,10 +525,15 @@ export class BattleDirector {
       return;
     }
 
+    if (move.special === 'thunder') {
+      await this.executeThunderMove(actor, move);
+      return;
+    }
+
     this.phase = 'chiCinematic';
     this.atb.consume(actor.combatant);
     this.logLine = `${move.name}.`;
-    this.hud.showMoveBanner(actor.name, move.name, move.kind === 'heal' ? 'healing' : 'chi');
+    this.hud.showMoveBanner(actor.name, move.name, this.moveTone(actor, move));
     this.hud.setDarkened(true);
     this.vfx.setAura(true, move.kind === 'heal' ? 'healing' : actor.role === 'Mage' ? 'mage' : 'chi');
     this.audio.playChiCharge();
@@ -652,7 +662,7 @@ export class BattleDirector {
     this.phase = 'chiCinematic';
     this.atb.consume(actor.combatant);
     this.logLine = `${move.name}.`;
-    this.hud.showMoveBanner(actor.name, move.name, 'chi');
+    this.hud.showMoveBanner(actor.name, move.name, this.moveTone(actor, move));
     this.hud.setDarkened(true);
     this.vfx.setAura(true, 'mage');
     this.audio.playChiCharge();
@@ -671,6 +681,44 @@ export class BattleDirector {
     this.audio.playChiImpact();
     this.enemy.flashHit();
     this.vfx.arcaneBurstAt(this.enemy.root.position);
+    await wait(move.flashMs);
+
+    const result = this.resolver.resolveChiDamage(actor.combatant, this.enemyCombatant, move);
+    this.logLine = `${move.name} dealt ${result.damage}.`;
+    window.dispatchEvent(new CustomEvent('rpg:action-resolved', { detail: result }));
+
+    this.vfx.setAura(false);
+    this.hud.setDarkened(false);
+
+    if (this.enemyCombatant.hp <= 0) {
+      await this.enterVictory();
+      return;
+    }
+
+    await this.cameraRig.restoreBattleView(actor.character.root.position, this.enemy.root.position);
+    actor.character.play('battleIdle');
+    this.finishPartyAction(actor);
+  }
+
+  private async executeThunderMove(actor: PartyActor, move: ChiMoveDefinition): Promise<void> {
+    this.phase = 'chiCinematic';
+    this.atb.consume(actor.combatant);
+    this.logLine = `${move.name}.`;
+    this.hud.showMoveBanner(actor.name, move.name, 'thunder');
+    this.hud.setDarkened(true);
+    this.vfx.setAura(true, 'thunder');
+    this.audio.playThunderCharge();
+    actor.character.faceToward(this.enemy.root.position);
+    actor.character.play(move.animation ?? 'slam', { loopOnce: true, fadeSeconds: 0.1, timeScale: move.timeScale });
+    this.hud.update(this.snapshot());
+
+    await this.cameraRig.frameMageSpecial(actor.character.root.position, this.enemy.root.position);
+    await wait(move.chargeMs);
+
+    this.hud.pulseFlash();
+    this.audio.playThunderImpact();
+    this.enemy.flashHit();
+    this.vfx.thunderBurstAt(this.enemy.root.position);
     await wait(move.flashMs);
 
     const result = this.resolver.resolveChiDamage(actor.combatant, this.enemyCombatant, move);
@@ -870,6 +918,22 @@ export class BattleDirector {
 
   private getActiveActor(): PartyActor | undefined {
     return this.activeActorId ? this.getActor(this.activeActorId) : undefined;
+  }
+
+  private moveTone(actor: PartyActor, move: ChiMoveDefinition): MoveBannerTone {
+    if (move.tone) {
+      return move.tone;
+    }
+
+    if (move.kind === 'heal') {
+      return 'healing';
+    }
+
+    return actor.role === 'Mage' ? 'magic' : 'chi';
+  }
+
+  private resourceName(actor: PartyActor): string {
+    return actor.role === 'Mage' ? 'Mana' : 'Chi';
   }
 
   private getActor(heroId: string): PartyActor | undefined {

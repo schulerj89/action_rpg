@@ -73,6 +73,7 @@ button.ghost {
 .battle-ui,
 .debug-panel,
 .game-over-screen,
+.dialogue-box,
 .loading,
 .move-banner,
 .title-screen,
@@ -82,6 +83,7 @@ button.ghost {
 
 .battle-ui,
 .debug-panel,
+.dialogue-box,
 .loading,
 .move-banner {
   z-index: 5;
@@ -127,6 +129,7 @@ button.ghost {
 .battle-ui[hidden],
 .victory-state[hidden],
 .game-over-screen[hidden],
+.dialogue-box[hidden],
 .loading[hidden],
 .move-banner[hidden],
 .title-screen[hidden],
@@ -154,7 +157,7 @@ button.ghost {
 .title-stack h1 {
   margin: 0;
   color: #ffffff;
-  font-size: clamp(48px, 8vw, 92px);
+  font-size: 88px;
   line-height: 0.9;
   font-weight: 950;
   letter-spacing: 0;
@@ -165,7 +168,7 @@ button.ghost {
   display: grid;
   gap: 10px;
   width: min(330px, 100%);
-  margin-left: 56px;
+  margin: 0;
 }
 
 .title-menu button {
@@ -447,8 +450,55 @@ button.ghost {
   box-shadow: 0 12px 38px rgba(134, 239, 172, 0.36);
 }
 
+.move-banner.magic {
+  color: #f5f3ff;
+  background: #7c3aed;
+  box-shadow: 0 12px 38px rgba(124, 58, 237, 0.36);
+}
+
+.move-banner.thunder {
+  color: #07111f;
+  background: #93c5fd;
+  box-shadow: 0 12px 38px rgba(147, 197, 253, 0.42);
+}
+
 .move-banner.pop {
   animation: move-pop 1450ms ease both;
+}
+
+.dialogue-box {
+  left: 24px;
+  bottom: 176px;
+  width: min(760px, calc(100vw - 440px));
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 18px;
+  padding: 18px 20px;
+  color: #f8fafc;
+  background: rgba(11, 18, 32, 0.9);
+  border: 1px solid rgba(147, 197, 253, 0.46);
+  border-radius: 8px;
+  box-shadow: 0 18px 46px rgba(2, 6, 23, 0.38);
+  backdrop-filter: blur(10px);
+}
+
+.dialogue-box strong {
+  color: #bfdbfe;
+  font-size: 18px;
+}
+
+.dialogue-box p {
+  grid-column: 1 / -1;
+  margin: 0;
+  min-height: 42px;
+  color: #f8fafc;
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+.dialogue-box button {
+  grid-column: 2;
+  justify-self: end;
 }
 
 .combatants {
@@ -784,6 +834,14 @@ button.ghost {
 }
 
 @media (max-width: 820px) {
+  .title-stack h1 {
+    font-size: 56px;
+  }
+
+  .title-menu {
+    width: min(290px, 100%);
+  }
+
   .battle-ui {
     grid-template-columns: 1fr;
     left: 10px;
@@ -804,6 +862,13 @@ button.ghost {
 
   .battle-actions button {
     flex: 1 1 120px;
+  }
+
+  .dialogue-box {
+    left: 10px;
+    bottom: 250px;
+    width: calc(100vw - 20px);
+    transform: none;
   }
 
   .party-roster {

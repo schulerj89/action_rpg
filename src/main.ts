@@ -22,6 +22,11 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div class="cinematic-darkener" data-testid="cinematic-darkener"></div>
   <div class="cinematic-flash" data-testid="cinematic-flash"></div>
   <div class="move-banner" data-testid="move-banner" hidden></div>
+  <section class="dialogue-box" data-testid="dialogue-box" hidden>
+    <strong data-testid="dialogue-speaker">Villager</strong>
+    <p data-testid="dialogue-text"></p>
+    <button type="button" data-testid="dialogue-next">Next</button>
+  </section>
   <section class="victory-results" data-testid="victory-results" hidden>
     <div class="victory-kicker">Victory</div>
     <h1 data-testid="victory-level-title">Level Up</h1>
@@ -82,7 +87,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <div class="victory-state" data-testid="victory-state" hidden>Victory</div>
   </section>
 
-  <aside class="debug-panel">
+  <aside class="debug-panel" data-testid="debug-panel">
     <pre data-testid="debug-stats">Loading...</pre>
     <label class="debug-select debug-hero-picker">
       <span>Edit</span>

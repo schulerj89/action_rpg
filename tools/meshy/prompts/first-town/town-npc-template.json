@@ -1,0 +1,6 @@
+{
+  "name": "first-town-npc-template",
+  "prompt": "Stylized low-poly chibi fantasy RPG villager NPC, idle-friendly neutral standing pose, simple clothing, friendly face, clean readable silhouette, optimized game model, no weapons, no text, no logo.",
+  "targetPath": "public/assets/town/first-town/villager-npc.glb",
+  "notes": "Use as the first shared NPC shell. Runtime applies a simple idle bob until rigged NPC animations exist."
+}

@@ -1,0 +1,6 @@
+{
+  "name": "first-town-village-house",
+  "prompt": "Stylized low-poly chibi fantasy RPG village house. Compact timber frame cottage, teal cloth awning, flower box, lantern, warm tan plaster, readable silhouette, no text, no logo, no characters.",
+  "targetPath": "public/assets/town/first-town/village-house.glb",
+  "notes": "Reusable residential prop for scaling the town without one-off building code."
+}

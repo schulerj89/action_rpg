@@ -1,0 +1,6 @@
+{
+  "name": "first-town-well",
+  "prompt": "Stylized low-poly fantasy town well for a chibi RPG. Stone circular base, small wooden roof, friendly bright materials, clean game-ready geometry, no text, no logo.",
+  "targetPath": "public/assets/town/first-town/town-well.glb",
+  "notes": "Good first Meshy replacement for the current primitive well."
+}

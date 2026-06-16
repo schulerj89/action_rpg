@@ -31,6 +31,7 @@ export class AudioDirector {
   private readonly punchImpactSfx = new Audio(punchImpactSfxAsset.url);
   private readonly kickImpactSfx = new Audio(kickImpactSfxAsset.url);
   private readonly enemyImpactSfx = new Audio(enemyImpactSfxAsset.url);
+  private audioContext?: AudioContext;
   private muted = false;
   private pendingTrack?: HTMLAudioElement;
   private status = 'idle';
@@ -98,6 +99,62 @@ export class AudioDirector {
 
   playHealing(): void {
     this.playSfx(this.healingSfx);
+  }
+
+  playThunderCharge(): void {
+    if (this.muted) {
+      return;
+    }
+
+    const context = this.getAudioContext();
+    if (!context) {
+      return;
+    }
+
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(128, now);
+    oscillator.frequency.exponentialRampToValueAtTime(58, now + 0.72);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.16, now + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.78);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.82);
+  }
+
+  playThunderImpact(): void {
+    if (this.muted) {
+      return;
+    }
+
+    const context = this.getAudioContext();
+    if (!context) {
+      return;
+    }
+
+    const now = context.currentTime;
+    const duration = 1.05;
+    const buffer = context.createBuffer(1, Math.floor(context.sampleRate * duration), context.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let index = 0; index < data.length; index += 1) {
+      const fade = 1 - index / data.length;
+      data[index] = (Math.random() * 2 - 1) * fade * fade;
+    }
+
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    const filter = context.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(460, now);
+    filter.frequency.exponentialRampToValueAtTime(92, now + duration);
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.42, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    source.connect(filter).connect(gain).connect(context.destination);
+    source.start(now);
   }
 
   playLevelUp(): void {
@@ -219,6 +276,19 @@ export class AudioDirector {
     ].forEach((track) => {
       this.stopSfx(track);
     });
+  }
+
+  private getAudioContext(): AudioContext | undefined {
+    if (!this.audioContext) {
+      const AudioContextCtor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextCtor) {
+        return undefined;
+      }
+      this.audioContext = new AudioContextCtor();
+    }
+
+    void this.audioContext.resume().catch(() => undefined);
+    return this.audioContext;
   }
 
   private readonly resumePendingMusic = (): void => {

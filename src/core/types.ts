@@ -36,11 +36,17 @@ export type PhysicalMoveId =
   | 'craneHighKick'
   | 'sweepKick'
   | 'lungeSpinKick';
-export type ChiMoveId = 'spiritFlare' | 'starfallHex' | 'astralCascade' | 'chiBreaker' | 'healingChi';
+export type ChiMoveId =
+  | 'spiritFlare'
+  | 'starfallHex'
+  | 'astralCascade'
+  | 'thunderfall'
+  | 'chiBreaker'
+  | 'healingChi';
 export type MoveId = PhysicalMoveId | ChiMoveId;
 export type ChiMoveKind = 'damage' | 'heal';
 export type StatKey = keyof HeroStats;
-export type MoveBannerTone = 'player' | 'enemy' | 'chi' | 'healing';
+export type MoveBannerTone = 'player' | 'enemy' | 'chi' | 'healing' | 'magic' | 'thunder';
 
 export interface HeroStats {
   strength: number;
@@ -122,7 +128,8 @@ export interface ChiMoveDefinition {
   name: string;
   kind: ChiMoveKind;
   animation?: HeroAnimationKey;
-  special?: 'mageRanged';
+  special?: 'mageRanged' | 'thunder';
+  tone?: MoveBannerTone;
   chiCost: number;
   focusScale: number;
   strengthScale: number;
@@ -156,6 +163,15 @@ export interface RuntimeDebugInfo {
   battle: BattleSnapshot;
   bossMode: boolean;
   audioStatus: string;
+  dialogueActive: boolean;
+  renderCalls: number;
+  renderGeometries: number;
+  renderTextures: number;
+  renderTriangles: number;
+  sceneId: string;
+  townAssetsFailed: number;
+  townAssetsLoaded: number;
+  townAssetsLoading: boolean;
 }
 
 export interface RpgTestApi {
@@ -169,7 +185,11 @@ export interface RpgTestApi {
     bossMode: boolean;
     enemyHp: number;
     equippedMoves: MoveId[];
+    dialogueActive: boolean;
+    dialogueSpeaker?: string;
     level: number;
+    meshyProps: string[];
+    npcIds: string[];
     party: Array<{
       active: boolean;
       atb: number;
@@ -185,10 +205,44 @@ export interface RpgTestApi {
     playerHp: number;
     playerChi: number;
     position: { x: number; z: number };
+    renderInfo: {
+      calls: number;
+      geometries: number;
+      textures: number;
+      triangles: number;
+    };
+    sceneId: string;
     supportHeroes: string[];
+    townAssetInfo: {
+      failed: string[];
+      fallbackIds: string[];
+      instanceCounts: Record<string, number>;
+      loaded: string[];
+      loading: boolean;
+      records: Array<{
+        id: string;
+        loadMs: number;
+        status: 'loaded' | 'failed' | 'missing';
+      }>;
+    };
+    townOccludersVisible: boolean;
+    visualState: {
+      attachments: Record<
+        string,
+        Array<{
+          bounds: {
+            max: { x: number; y: number; z: number };
+            min: { x: number; y: number; z: number };
+          };
+          id: string;
+          visible: boolean;
+        }>
+      >;
+    };
     xpGained: number;
   };
   forceEnemyReady: () => void;
+  interactWithNpc: (npcId: string) => boolean;
   movePlayerToBattleTrigger: () => void;
   muteAudio: () => void;
   setEnemyHp: (value: number) => void;

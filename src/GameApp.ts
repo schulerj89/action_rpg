@@ -16,12 +16,15 @@ import { EnemyShape } from './entities/EnemyShape';
 import { HeroCharacter } from './entities/HeroCharacter';
 import { BattleHud } from './ui/BattleHud';
 import { DebugPanel } from './ui/DebugPanel';
+import { DialogueBox } from './ui/DialogueBox';
 import { TitleScreen } from './ui/TitleScreen';
 import { VfxController } from './vfx/VfxController';
 import { CameraRig } from './world/CameraRig';
 import { EncounterTrigger } from './world/EncounterTrigger';
-import { battleTriggerPosition, createWorldScene } from './world/SceneFactory';
+import { DialogueRepository, type SceneDialogue } from './world/dialogue/DialogueRepository';
+import { createWorldScene } from './world/SceneFactory';
 import type { WorldScene } from './world/SceneFactory';
+import { FirstTownScene } from './world/town/FirstTownScene';
 
 const playerMoveSpeed = 4.2;
 const explorationAcceleration = 18;
@@ -29,7 +32,7 @@ const explorationDeceleration = 24;
 const explorationPivotTurnSpeed = 3.9;
 const explorationReverseTurnSpeed = 5.6;
 const movementStopThreshold = 0.03;
-const leaderBattleAnchor = new Vector3(0, 0, -5.8);
+const leaderBattleAnchor = new Vector3(0, 0, -24.6);
 
 export class GameApp {
   private readonly canvas: HTMLCanvasElement;
@@ -37,6 +40,8 @@ export class GameApp {
   private readonly battle: BattleDirector;
   private readonly cameraRig: CameraRig;
   private readonly debugPanel: DebugPanel;
+  private readonly dialogueBox: DialogueBox;
+  private readonly sceneDialogue: SceneDialogue;
   private readonly enemy: EnemyShape;
   private readonly frameStats = new FrameStats();
   private readonly hero: HeroCharacter;
@@ -47,32 +52,46 @@ export class GameApp {
   private readonly heroForward = new Vector3(0, 0, -1);
   private readonly movement = new Vector3();
   private readonly supportHeroes: Map<SupportHeroId, HeroCharacter>;
+  private readonly town: FirstTownScene;
   private readonly supportTarget = new Vector3();
   private readonly supportRight = new Vector3();
   private readonly targetVelocity = new Vector3();
   private readonly titleScreen: TitleScreen;
   private readonly chiBreakerFootPosition = new Vector3();
+  private readonly previousHeroPosition = new Vector3();
+  private readonly proposedHeroPosition = new Vector3();
   private readonly trigger: EncounterTrigger;
   private readonly vfx = new VfxController();
   private readonly world: WorldScene;
   private reverseTurnTargetYaw?: number;
+  private townAssetsLoading = false;
+  private townCombatMode = false;
   private lastFrameTime = performance.now();
 
-  private constructor(canvas: HTMLCanvasElement, hero: HeroCharacter, supportHeroes: Map<SupportHeroId, HeroCharacter>) {
+  private constructor(
+    canvas: HTMLCanvasElement,
+    hero: HeroCharacter,
+    supportHeroes: Map<SupportHeroId, HeroCharacter>,
+    sceneDialogue: SceneDialogue,
+  ) {
     this.canvas = canvas;
     this.world = createWorldScene(this.canvas);
+    this.town = new FirstTownScene();
+    this.sceneDialogue = sceneDialogue;
     this.hero = hero;
     this.hud = new BattleHud(document);
+    this.dialogueBox = new DialogueBox(document);
     this.cameraRig = new CameraRig(this.world.camera);
     this.enemy = new EnemyShape();
     this.supportHeroes = supportHeroes;
-    this.trigger = new EncounterTrigger(battleTriggerPosition, 1.35, this.world.triggerPad);
+    this.trigger = new EncounterTrigger(this.town.battleTriggerPosition, 1.35, this.town.battleTriggerPad);
     this.battle = new BattleDirector({
       audio: this.audio,
       cameraRig: this.cameraRig,
       enemy: this.enemy,
       hud: this.hud,
       party: this.createBattleParty(),
+      resetPosition: this.town.spawn,
       trigger: this.trigger,
       vfx: this.vfx,
     });
@@ -105,19 +124,21 @@ export class GameApp {
       },
     });
 
-    this.world.scene.add(this.hero.root, this.enemy.root, this.vfx.root, ...this.getSupportHeroRoots());
-    this.hero.root.position.set(0, 0, 0);
+    this.world.scene.add(this.town.root, this.hero.root, this.enemy.root, this.vfx.root, ...this.getSupportHeroRoots());
+    this.hero.root.position.copy(this.town.spawn);
     this.hero.root.rotation.y = Math.PI;
     this.enemy.root.visible = false;
     this.syncPartyHud();
     this.updateSupportHeroVisibility();
     this.installResizeHandler();
+    this.installInteractionHandler();
     this.installTestApi();
     this.audio.playTitle();
   }
 
   static async mount(canvas: HTMLCanvasElement): Promise<GameApp> {
-    const [hero, supportEntries] = await Promise.all([
+    const dialogueRepository = new DialogueRepository();
+    const [hero, supportEntries, sceneDialogue] = await Promise.all([
       HeroCharacter.load(playerHeroDefinition),
       Promise.all(
         supportHeroDefinitions.map(async (definition) => {
@@ -125,10 +146,21 @@ export class GameApp {
           return [definition.id, character] as const;
         }),
       ),
+      dialogueRepository.loadScene('first-town'),
     ]);
-    const app = new GameApp(canvas, hero, new Map(supportEntries));
+    const app = new GameApp(canvas, hero, new Map(supportEntries), sceneDialogue);
     app.start();
+    void app.loadSceneAssets();
     return app;
+  }
+
+  private async loadSceneAssets(): Promise<void> {
+    this.townAssetsLoading = true;
+    try {
+      await this.town.loadMeshyProps();
+    } finally {
+      this.townAssetsLoading = false;
+    }
   }
 
   start(): void {
@@ -142,11 +174,13 @@ export class GameApp {
     this.lastFrameTime = now;
     this.frameStats.update(deltaSeconds);
 
+    this.town.update(deltaSeconds);
     this.updateWorld(deltaSeconds);
     this.hero.update(deltaSeconds);
     this.supportHeroes.forEach((supportHero) => {
       supportHero.update(deltaSeconds);
     });
+    this.updateTownCombatMode();
     this.enemy.update(deltaSeconds);
     const vfxCharacter = this.battle.getVfxCharacter();
     this.vfx.update(
@@ -158,13 +192,20 @@ export class GameApp {
     this.battle.update(deltaSeconds);
     this.updateDebug();
 
-    this.world.triggerPad.rotation.z += deltaSeconds * 1.8;
     this.world.renderer.render(this.world.scene, this.world.camera);
     window.requestAnimationFrame(this.render);
   };
 
   private updateWorld(deltaSeconds: number): void {
     if (this.titleScreen.isActive()) {
+      this.explorationVelocity.set(0, 0, 0);
+      this.hero.play('explorationIdle');
+      this.cameraRig.updateExploration(this.hero.root.position, this.heroForward, deltaSeconds);
+      this.updateSupportHeroes(deltaSeconds, true);
+      return;
+    }
+
+    if (this.dialogueBox.isActive()) {
       this.explorationVelocity.set(0, 0, 0);
       this.hero.play('explorationIdle');
       this.cameraRig.updateExploration(this.hero.root.position, this.heroForward, deltaSeconds);
@@ -201,7 +242,9 @@ export class GameApp {
         this.explorationVelocity.set(0, 0, 0);
       }
 
-      this.hero.root.position.addScaledVector(this.explorationVelocity, deltaSeconds);
+      this.previousHeroPosition.copy(this.hero.root.position);
+      this.proposedHeroPosition.copy(this.hero.root.position).addScaledVector(this.explorationVelocity, deltaSeconds);
+      this.hero.root.position.copy(this.town.resolvePlayerPosition(this.previousHeroPosition, this.proposedHeroPosition));
 
       if (this.explorationVelocity.lengthSq() > movementStopThreshold * movementStopThreshold) {
         this.hero.play('run');
@@ -224,6 +267,16 @@ export class GameApp {
       this.explorationVelocity.set(0, 0, 0);
       this.updateSupportHeroes(deltaSeconds, false);
     }
+  }
+
+  private updateTownCombatMode(): void {
+    const enabled = this.battle.getPhase() !== 'exploration' && !this.titleScreen.isActive();
+    if (enabled === this.townCombatMode) {
+      return;
+    }
+
+    this.townCombatMode = enabled;
+    this.town.setCombatMode(enabled);
   }
 
   private createBattleParty(): BattlePartyMemberConfig[] {
@@ -354,6 +407,7 @@ export class GameApp {
 
   private updateDebug(): void {
     const battle = this.battle.snapshot();
+    const townAssetInfo = this.town.getAssetSnapshot();
     const info: RuntimeDebugInfo = {
       fps: this.frameStats.fps,
       frameMs: this.frameStats.frameMs,
@@ -362,6 +416,15 @@ export class GameApp {
       battle,
       bossMode: this.battle.isBossMode(),
       audioStatus: this.audio.getStatus(),
+      dialogueActive: this.dialogueBox.isActive(),
+      renderCalls: this.world.renderer.info.render.calls,
+      renderGeometries: this.world.renderer.info.memory.geometries,
+      renderTextures: this.world.renderer.info.memory.textures,
+      renderTriangles: this.world.renderer.info.render.triangles,
+      sceneId: this.town.sceneId,
+      townAssetsFailed: townAssetInfo.failed.length,
+      townAssetsLoaded: townAssetInfo.loaded.length,
+      townAssetsLoading: this.townAssetsLoading,
     };
 
     this.debugPanel.update(info);
@@ -377,6 +440,41 @@ export class GameApp {
 
     window.addEventListener('resize', resize);
     resize();
+  }
+
+  private installInteractionHandler(): void {
+    window.addEventListener('keydown', (event) => {
+      if (event.code !== 'KeyE' && event.code !== 'Enter' && event.code !== 'Space') {
+        return;
+      }
+
+      if (this.dialogueBox.isActive()) {
+        event.preventDefault();
+        this.dialogueBox.advance();
+        return;
+      }
+
+      if (this.titleScreen.isActive() || this.battle.getPhase() !== 'exploration') {
+        return;
+      }
+
+      if (this.openNearestDialogue()) {
+        event.preventDefault();
+      }
+    });
+  }
+
+  private openNearestDialogue(): boolean {
+    const interaction = this.town.findNearestInteraction(this.hero.root.position);
+    if (!interaction) {
+      return false;
+    }
+
+    return this.openDialogue(interaction.npcId);
+  }
+
+  private openDialogue(npcId: string): boolean {
+    return this.dialogueBox.show(this.sceneDialogue, npcId);
   }
 
   private installTestApi(): void {
@@ -402,9 +500,13 @@ export class GameApp {
           audioStatus: this.audio.getStatus(),
           battleState: this.battle.getPhase(),
           bossMode: this.battle.isBossMode(),
+          dialogueActive: this.dialogueBox.isActive(),
+          dialogueSpeaker: this.dialogueBox.getCurrentNpcName(),
           enemyHp: this.battle.enemyCombatant.hp,
           equippedMoves: this.battle.getEquippedMoves(),
           level: this.battle.getLevel(),
+          meshyProps: this.town.getLoadedMeshyProps(),
+          npcIds: this.town.getNpcIds(),
           party: snapshot.party.map((member) => ({
             active: member.active,
             atb: member.atb,
@@ -423,10 +525,32 @@ export class GameApp {
             x: this.hero.root.position.x,
             z: this.hero.root.position.z,
           },
+          renderInfo: {
+            calls: this.world.renderer.info.render.calls,
+            geometries: this.world.renderer.info.memory.geometries,
+            textures: this.world.renderer.info.memory.textures,
+            triangles: this.world.renderer.info.render.triangles,
+          },
+          sceneId: this.town.sceneId,
           supportHeroes: Array.from(this.activeSupportHeroIds),
+          townAssetInfo: {
+            fallbackIds: this.town.getFallbackIds(),
+            loading: this.townAssetsLoading,
+            ...this.town.getAssetSnapshot(),
+          },
+          townOccludersVisible: this.town.areCombatOccludersVisible(),
+          visualState: {
+            attachments: {
+              ryuji: this.hero.getAttachmentDebugState(),
+              ...Object.fromEntries(
+                Array.from(this.supportHeroes.entries(), ([id, character]) => [id, character.getAttachmentDebugState()]),
+              ),
+            },
+          },
           xpGained: this.battle.getXpGained(),
         };
       },
+      interactWithNpc: (npcId: string) => this.openDialogue(npcId),
       movePlayerToBattleTrigger: () => {
         this.hero.root.position.copy(this.trigger.getPosition());
         void this.battle.startBattle();

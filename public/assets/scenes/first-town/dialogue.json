@@ -1,0 +1,53 @@
+{
+  "sceneId": "first-town",
+  "npcs": {
+    "weapon_smith": {
+      "displayName": "Taro",
+      "start": "hello",
+      "nodes": {
+        "hello": {
+          "text": "The training ring north of town is open. Bring me thunder stories when you return.",
+          "next": "forge"
+        },
+        "forge": {
+          "text": "I can shape a blade, but Aetherwake chooses the hand that carries it.",
+          "next": null
+        }
+      }
+    },
+    "potion_keeper": {
+      "displayName": "Luma",
+      "start": "hello",
+      "nodes": {
+        "hello": {
+          "text": "Cure is magic, not chi. Mira should call on the quiet light and let it answer.",
+          "next": null
+        }
+      }
+    },
+    "elder": {
+      "displayName": "Elder Ren",
+      "start": "hello",
+      "nodes": {
+        "hello": {
+          "text": "Aetherwake began as a town that remembered tomorrow before yesterday could end.",
+          "next": "warning"
+        },
+        "warning": {
+          "text": "When the sky splits blue, listen for what the thunder is trying to name.",
+          "next": null
+        }
+      }
+    },
+    "runner": {
+      "displayName": "Pip",
+      "start": "hello",
+      "nodes": {
+        "hello": {
+          "text": "I saw a red core at the training field. It just floats there like it owns the place.",
+          "next": null
+        }
+      }
+    }
+  }
+}

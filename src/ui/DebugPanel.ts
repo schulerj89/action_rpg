@@ -100,14 +100,21 @@ export class DebugPanel {
   update(info: RuntimeDebugInfo): void {
     const partyLines = info.battle.party.map((member) => {
       const marker = member.id === info.battle.activeActorId ? '*' : '-';
+      const resource = member.role === 'Mage' ? 'Mana' : 'Chi';
       const state = member.active
-        ? `Lv ${member.level} ${member.hp}/${member.maxHp} HP ${Math.round(member.atb)} ATB ${member.xp} XP`
+        ? `Lv ${member.level} ${member.hp}/${member.maxHp} HP ${member.chi} ${resource} ${Math.round(
+            member.atb,
+          )} ATB ${member.xp} XP`
         : 'off';
       return `${marker} ${member.name}: ${state}`;
     });
     const lines = [
       `FPS ${info.fps.toFixed(0)} (${info.frameMs.toFixed(1)} ms)`,
+      `Scene ${info.sceneId} Draws ${info.renderCalls}`,
+      `GPU Tri ${info.renderTriangles} Geo ${info.renderGeometries} Tex ${info.renderTextures}`,
+      `Town GLB ${info.townAssetsLoaded}/9${info.townAssetsLoading ? ' loading' : ''} Fail ${info.townAssetsFailed}`,
       `State ${info.battle.phase}`,
+      `Dialogue ${info.dialogueActive ? 'open' : 'closed'}`,
       `Pos ${info.playerX.toFixed(1)}, ${info.playerZ.toFixed(1)}`,
       `Enemy HP ${info.battle.enemy.hp}/${info.battle.enemy.maxHp} ATB ${Math.round(info.battle.enemy.atb)}`,
       `Boss ${info.bossMode ? 'on' : 'off'}`,
