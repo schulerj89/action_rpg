@@ -22,13 +22,17 @@ export class BattleHud {
   private readonly log: HTMLElement;
   private readonly actionActor: HTMLElement;
   private readonly actionHint: HTMLElement;
+  private readonly helpText: HTMLElement;
   private readonly moveButtons: HTMLButtonElement[];
   private readonly partyAtbList: HTMLElement;
+  private readonly turnLadder: HTMLElement;
   private readonly partyMeterEls = new Map<
     string,
     {
       atbFill: HTMLElement;
+      atbValue: HTMLElement;
       hp: HTMLElement;
+      name: HTMLElement;
       ready: HTMLElement;
       resource: HTMLElement;
       root: HTMLElement;
@@ -69,7 +73,9 @@ export class BattleHud {
     const log = root.querySelector<HTMLElement>('[data-testid="battle-log"]');
     const actionActor = root.querySelector<HTMLElement>('[data-testid="battle-active-actor"]');
     const actionHint = root.querySelector<HTMLElement>('[data-testid="battle-action-hint"]');
+    const helpText = root.querySelector<HTMLElement>('[data-testid="battle-help-text"]');
     const partyAtbList = root.querySelector<HTMLElement>('[data-testid="party-atb-list"]');
+    const turnLadder = root.querySelector<HTMLElement>('[data-testid="battle-turn-ladder"]');
     const supportSlots = [0, 1].map((index) => ({
       name: root.querySelector<HTMLElement>(`[data-testid="ally-slot-${index}-name"]`),
       root: root.querySelector<HTMLElement>(`[data-testid="ally-slot-${index}"]`),
@@ -108,7 +114,9 @@ export class BattleHud {
       !log ||
       !actionActor ||
       !actionHint ||
+      !helpText ||
       !partyAtbList ||
+      !turnLadder ||
       supportSlots.some((slot) => !slot.name || !slot.root || !slot.status) ||
       moveButtons.some((button) => !button) ||
       !resetButton ||
@@ -141,7 +149,9 @@ export class BattleHud {
     this.log = log;
     this.actionActor = actionActor;
     this.actionHint = actionHint;
+    this.helpText = helpText;
     this.partyAtbList = partyAtbList;
+    this.turnLadder = turnLadder;
     this.supportSlots = supportSlots as Array<{
       name: HTMLElement;
       root: HTMLElement;
@@ -288,13 +298,15 @@ export class BattleHud {
     this.enemyAtb.textContent = String(Math.round(snapshot.enemy.atb));
     this.log.textContent = snapshot.logLine;
     this.renderPartyMeters(snapshot);
+    this.renderTurnLadder(snapshot);
 
     this.actionActor.textContent = activeMember ? activeMember.name : 'Waiting';
     this.actionHint.textContent = snapshot.canAct
       ? `${resourceName(activeMember?.role ?? 'Fighter')} ${activeMember?.chi ?? 0}/${activeMember?.maxChi ?? 0}`
-      : snapshot.phase === 'enemyAction'
-        ? 'Enemy action'
-        : 'ATB charging';
+        : snapshot.phase === 'enemyAction'
+          ? 'Enemy action'
+          : 'ATB charging';
+    this.helpText.textContent = this.getHelpText(snapshot, activeMember);
 
     this.supportSlots.forEach((slot, index) => {
       const member = snapshot.party[index + 1];
@@ -322,6 +334,7 @@ export class BattleHud {
       button.disabled = !snapshot.canAct || !move || (activeMember?.chi ?? 0) < move.chiCost;
       button.title = move ? `${move.name} | Cost ${move.chiCost} ${resourceName(activeMember?.role ?? 'Fighter')}` : 'Empty slot';
       button.dataset.moveId = move?.id ?? '';
+      button.classList.toggle('primary-command', snapshot.canAct && index === 0);
     });
     this.victoryState.hidden = snapshot.phase !== 'victory';
     this.playerAtbFill.style.setProperty('--atb-progress', `${Math.min(snapshot.player.atb, 100)}%`);
@@ -339,6 +352,7 @@ export class BattleHud {
 
         const header = document.createElement('header');
         const name = document.createElement('strong');
+        name.dataset.testid = `party-name-${member.id}`;
         name.textContent = member.name;
         const ready = document.createElement('span');
         ready.dataset.testid = `party-ready-${member.id}`;
@@ -349,6 +363,9 @@ export class BattleHud {
         hp.dataset.testid = `party-hp-${member.id}`;
         const resource = document.createElement('span');
         resource.dataset.testid = `party-resource-${member.id}`;
+        const atbValue = document.createElement('span');
+        atbValue.className = 'party-atb-value';
+        atbValue.dataset.testid = `party-atb-value-${member.id}`;
 
         const atbTrack = document.createElement('div');
         atbTrack.className = 'atb-track';
@@ -357,9 +374,9 @@ export class BattleHud {
         atbFill.dataset.testid = `party-atb-fill-${member.id}`;
         atbTrack.append(atbFill);
 
-        card.append(header, hp, resource, atbTrack);
+        card.append(header, hp, resource, atbTrack, atbValue);
         this.partyAtbList.append(card);
-        this.partyMeterEls.set(member.id, { atbFill, hp, ready, resource, root: card });
+        this.partyMeterEls.set(member.id, { atbFill, atbValue, hp, name, ready, resource, root: card });
       });
       this.partyMeterKey = key;
     }
@@ -372,16 +389,107 @@ export class BattleHud {
 
       els.root.classList.toggle('inactive', !member.active);
       els.root.classList.toggle('active-turn', member.canAct);
+      els.name.textContent = member.name;
       els.hp.textContent = `${member.hp}/${member.maxHp} HP`;
       els.resource.textContent = `${member.chi}/${member.maxChi} ${resourceName(member.role)}`;
       els.ready.textContent = member.canAct ? 'Ready' : member.active ? `${Math.round(member.atb)}` : 'Out';
+      els.atbValue.textContent = `${Math.round(member.atb)} ATB`;
       els.atbFill.style.setProperty('--atb-progress', `${Math.min(member.atb, 100)}%`);
     });
+  }
+
+  private renderTurnLadder(snapshot: BattleSnapshot): void {
+    const entries = [
+      ...snapshot.party
+        .filter((member) => member.active)
+        .map((member) => ({
+          atb: member.atb,
+          id: member.id,
+          label: initials(member.name),
+          name: member.name,
+          ready: member.canAct,
+          tone: member.role === 'Mage' ? 'mage' : 'hero',
+        })),
+      {
+        atb: snapshot.enemy.atb,
+        id: 'enemy',
+        label: 'BOSS',
+        name: snapshot.enemy.name,
+        ready: snapshot.phase === 'enemyAction' || snapshot.enemy.atb >= 100,
+        tone: 'enemy',
+      },
+    ].sort((a, b) => b.atb - a.atb);
+
+    this.turnLadder.replaceChildren(
+      ...entries.map((entry) => {
+        const row = document.createElement('div');
+        row.className = `turn-ladder-entry ${entry.tone}`;
+        row.classList.toggle('ready', entry.ready);
+        row.dataset.testid = `turn-ladder-${entry.id}`;
+
+        const portrait = document.createElement('span');
+        portrait.className = 'turn-ladder-portrait';
+        portrait.textContent = entry.label;
+
+        const fill = document.createElement('span');
+        fill.className = 'turn-ladder-fill';
+        fill.style.setProperty('--ladder-progress', `${Math.min(entry.atb, 100)}%`);
+
+        const name = document.createElement('small');
+        name.textContent = entry.name;
+
+        row.append(portrait, fill, name);
+        return row;
+      }),
+    );
+  }
+
+  private getHelpText(snapshot: BattleSnapshot, activeMember?: BattleSnapshot['party'][number]): string {
+    if (snapshot.phase === 'enemyAction') {
+      return `${snapshot.enemy.name} is attacking. Watch the target and prepare the next command.`;
+    }
+    if (!snapshot.canAct || !activeMember) {
+      return 'ATB gauges are charging. Ready characters will open the command window.';
+    }
+
+    const move = snapshot.equippedMoves.find((candidate) => candidate);
+    if (!move) {
+      return `${activeMember.name} is ready, but no command is equipped.`;
+    }
+
+    return `${move.name}: ${moveHelp(move.id)} Cost ${move.chiCost} ${resourceName(activeMember.role)}.`;
   }
 }
 
 function resourceName(role: string): string {
   return role === 'Mage' ? 'Mana' : 'Chi';
+}
+
+function initials(name: string): string {
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function moveHelp(moveId: string): string {
+  switch (moveId) {
+    case 'healingChi':
+      return 'Restore an ally with a focused recovery spell.';
+    case 'chiBreaker':
+      return 'Charge a finishing kick for heavy damage.';
+    case 'thunderfall':
+      return 'Call lightning from range for burst damage.';
+    case 'astralCascade':
+      return 'Unleash a mage special from safe distance.';
+    case 'spiritFlare':
+    case 'starfallHex':
+      return 'Cast ranged magic at the enemy.';
+    default:
+      return 'Attack an enemy with the equipped stance.';
+  }
 }
 
 function formatStatName(stat: LevelUpGain['stat']): string {

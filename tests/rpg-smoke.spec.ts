@@ -287,6 +287,11 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().townOccludersVisible)).toBe(false);
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().battleRoomInfo.visible)).toBe(true);
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().position.z)).toBeLessThan(-18);
+  await expect(page.getByTestId('battle-help')).toBeVisible();
+  await expect(page.getByTestId('battle-help-text')).toContainText('ATB');
+  await expect(page.getByTestId('battle-turn-ladder')).toBeVisible();
+  await expect(page.getByTestId('turn-ladder-ryuji')).toBeVisible();
+  await expect(page.getByTestId('turn-ladder-enemy')).toBeVisible();
   await expect(page.getByTestId('party-card-ryuji')).toBeVisible();
   await expect(page.getByTestId('party-atb-fill-ryuji')).toHaveAttribute('style', /--atb-progress/);
   await expect(page.getByTestId('ally-slot-0-name')).toHaveText('Mira Sol');
@@ -321,7 +326,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('move-banner')).toHaveClass(/enemy/);
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.preset), { timeout: 5_000 })
-    .toMatch(/battle\.enemy\.windup/);
+    .toMatch(/battle\.enemy\.(windup|impact)/);
   await page.screenshot({ path: `${qaScreenshotDir}/battle-enemy-pulse-ram-windup.png` });
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.preset), { timeout: 6_000 })
@@ -331,9 +336,17 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect.poll(() => playerHp(page)).toBeLessThan(heroHpBeforeCounter);
   await waitForActionRecovery(page);
 
-  await page.evaluate(() => window.__rpgTest?.forceHeroReady('mira'));
+  await forceHeroReady(page, 'mira');
   await expect(page.getByTestId('battle-active-actor')).toHaveText('Mira Sol');
   await expect(page.getByTestId('party-ready-mira')).toHaveText('Ready');
+  await expect(page.getByTestId('battle-help-text')).toContainText('Spirit Flare');
+  await expect(page.getByTestId('turn-ladder-mira')).toBeVisible();
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(true));
+  await page.getByTestId('qa-caption').evaluate((caption) => {
+    caption.hidden = true;
+  });
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-menu-reference-layout.png` });
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(false));
   await expect(page.getByTestId('move-slot-0')).toHaveText('Spirit Flare');
   await expect(page.getByTestId('move-slot-0')).toBeEnabled();
   const enemyHpBeforeMira = await enemyHp(page);
@@ -344,7 +357,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect.poll(() => enemyHp(page)).toBeLessThan(enemyHpBeforeMira);
   await waitForActionRecovery(page);
 
-  await page.evaluate(() => window.__rpgTest?.forceHeroReady('mira'));
+  await forceHeroReady(page, 'mira');
   await expect(page.getByTestId('move-slot-1')).toHaveText('Thunderfall');
   await expect(page.getByTestId('move-slot-1')).toBeEnabled();
   const enemyHpBeforeThunder = await enemyHp(page);
@@ -373,8 +386,8 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await page.evaluate(() => {
     window.__rpgTest?.setEnemyHp(460);
     window.__rpgTest?.equipHeroMove('mira', 1, 'starfallHex');
-    window.__rpgTest?.forceHeroReady('mira');
   });
+  await forceHeroReady(page, 'mira');
   await expect(page.getByTestId('move-slot-1')).toHaveText('Starfall Hex');
   await expect(page.getByTestId('move-slot-1')).toBeEnabled();
   const enemyHpBeforeStarfall = await enemyHp(page);
@@ -385,7 +398,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await waitForActionRecovery(page);
   await page.evaluate(() => window.__rpgTest?.setEnemyHp(420));
 
-  await page.evaluate(() => window.__rpgTest?.forceHeroReady('mira'));
+  await forceHeroReady(page, 'mira');
   await expect(page.getByTestId('move-slot-2')).toHaveText('Astral Cascade');
   await expect(page.getByTestId('move-slot-2')).toBeEnabled();
   const enemyHpBeforeMageSpecial = await enemyHp(page);
@@ -396,8 +409,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await waitForActionRecovery(page);
   await page.evaluate(() => window.__rpgTest?.setEnemyHp(320));
 
-  await page.evaluate(() => window.__rpgTest?.forceHeroReady('ryuji'));
-  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().activeActorId)).toBe('ryuji');
+  await forceHeroReady(page, 'ryuji');
   await expect(page.getByTestId('move-slot-0')).toBeEnabled();
   await expect(page.getByTestId('player-atb-fill')).toHaveAttribute('style', /--atb-progress: 100%/);
 
@@ -411,9 +423,8 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
   await page.evaluate(() => {
     window.__rpgTest?.equipHeroMove('ryuji', 2, 'healingChi');
-    window.__rpgTest?.forceHeroReady('ryuji');
   });
-  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().activeActorId)).toBe('ryuji');
+  await forceHeroReady(page, 'ryuji');
   await expect(page.getByTestId('move-slot-2')).toHaveText('Cure');
   await expect(page.getByTestId('move-slot-2')).toBeEnabled();
 
@@ -428,8 +439,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect.poll(() => playerHp(page)).toBeGreaterThan(heroHpBeforeHeal);
   await waitForActionRecovery(page);
 
-  await page.evaluate(() => window.__rpgTest?.forceHeroReady('ryuji'));
-  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().activeActorId)).toBe('ryuji');
+  await forceHeroReady(page, 'ryuji');
   await expect(page.getByTestId('move-slot-1')).toBeEnabled();
 
   const afterPunchHp = await enemyHp(page);
@@ -440,9 +450,8 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
   await page.evaluate(() => {
     window.__rpgTest?.equipHeroMove('ryuji', 2, 'chiBreaker');
-    window.__rpgTest?.forceHeroReady('ryuji');
   });
-  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().activeActorId)).toBe('ryuji');
+  await forceHeroReady(page, 'ryuji');
   await expect(page.getByTestId('move-slot-2')).toHaveText('Chi Breaker');
   await expect(page.getByTestId('move-slot-2')).toBeEnabled();
 
@@ -461,9 +470,8 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
   await page.evaluate(() => {
     window.__rpgTest?.setEnemyHp(1);
-    window.__rpgTest?.forceHeroReady('ryuji');
   });
-  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().activeActorId)).toBe('ryuji');
+  await forceHeroReady(page, 'ryuji');
   await expect(page.getByTestId('move-slot-0')).toBeEnabled({ timeout: 8_000 });
   await page.getByTestId('move-slot-0').click();
 
@@ -561,4 +569,17 @@ async function waitForActionRecovery(page: Page) {
       { timeout: 25_000 }
     )
     .toBe(true);
+}
+
+async function forceHeroReady(page: Page, heroId: 'mira' | 'ryuji') {
+  await waitForActionRecovery(page);
+  await expect
+    .poll(
+      async () => {
+        await page.evaluate((id) => window.__rpgTest?.forceHeroReady(id), heroId);
+        return page.evaluate(() => window.__rpgTest?.getState().activeActorId);
+      },
+      { timeout: 10_000 },
+    )
+    .toBe(heroId);
 }

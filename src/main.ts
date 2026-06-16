@@ -110,37 +110,12 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </section>
 
   <section class="battle-ui" data-testid="battle-ui" hidden>
-    <div class="combatants">
-      <div class="party-roster">
-        <div class="combatant party-leader">
-          <strong>Ryuji Vale</strong>
-          <span><span data-testid="player-hp">0</span>/<span data-testid="player-hp-max">0</span> HP</span>
-          <span><span data-testid="player-chi">0</span> Chi</span>
-        </div>
-        <div class="combatant ally-standby" data-testid="ally-slot-0">
-          <strong data-testid="ally-slot-0-name">Mira Sol</strong>
-          <span data-testid="ally-slot-0-status">Standby Mage</span>
-        </div>
-        <div class="combatant ally-standby" data-testid="ally-slot-1">
-          <strong data-testid="ally-slot-1-name">Ally 3</strong>
-          <span data-testid="ally-slot-1-status">Empty</span>
-        </div>
-      </div>
-      <div class="combatant enemy">
-        <strong>Crimson Core</strong>
-        <span><span data-testid="enemy-hp">0</span>/<span data-testid="enemy-hp-max">0</span> HP</span>
-        <span>ATB <span data-testid="enemy-atb">0</span></span>
-      </div>
+    <div class="battle-help" data-testid="battle-help">
+      <span>Help</span>
+      <strong data-testid="battle-help-text">ATB gauges are charging.</strong>
     </div>
-    <div class="turn-row">
-      <div class="party-atb-list" data-testid="party-atb-list"></div>
-      <div class="legacy-atb-meter" aria-hidden="true">
-        <span data-testid="player-atb">0</span>
-        <div data-testid="player-atb-fill"></div>
-      </div>
-      <div class="battle-log" data-testid="battle-log"></div>
-    </div>
-    <div class="battle-actions">
+    <div class="battle-turn-ladder" data-testid="battle-turn-ladder"></div>
+    <div class="battle-command-panel">
       <header>
         <span>Command</span>
         <strong data-testid="battle-active-actor">Waiting</strong>
@@ -152,6 +127,24 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
         <button type="button" data-testid="move-slot-2">Chi Breaker</button>
       </div>
       <button type="button" class="ghost" data-testid="reset-battle">Reset</button>
+    </div>
+    <div class="battle-status-panel">
+      <div class="party-atb-list" data-testid="party-atb-list"></div>
+      <div class="legacy-atb-meter" aria-hidden="true">
+        <span data-testid="player-atb">0</span>
+        <div data-testid="player-atb-fill"></div>
+      </div>
+      <div class="battle-log" data-testid="battle-log"></div>
+    </div>
+    <div class="legacy-battle-values" aria-hidden="true">
+      <span data-testid="player-hp">0</span>
+      <span data-testid="player-hp-max">0</span>
+      <span data-testid="player-chi">0</span>
+      <span data-testid="enemy-hp">0</span>
+      <span data-testid="enemy-hp-max">0</span>
+      <span data-testid="enemy-atb">0</span>
+      <span data-testid="ally-slot-0"><span data-testid="ally-slot-0-name">Mira Sol</span><span data-testid="ally-slot-0-status">Standby Mage</span></span>
+      <span data-testid="ally-slot-1"><span data-testid="ally-slot-1-name">Ally 3</span><span data-testid="ally-slot-1-status">Empty</span></span>
     </div>
     <div class="victory-state" data-testid="victory-state" hidden>Victory</div>
   </section>

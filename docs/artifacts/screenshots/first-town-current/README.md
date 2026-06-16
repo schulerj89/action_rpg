@@ -4,13 +4,13 @@ Generated on 2026-06-16 from `npm run smoke`.
 
 Source capture directory: `test-results/qa-screens/current`
 
-These screenshots are intentionally committed as browseable QA artifacts for the current first-town sandbox state. The source smoke run passed before copying these files. Headless Playwright captures can show lower FPS overlays than the visible in-app browser; use the visible browser for performance judgment. This pass includes high-detail Meshy NPC replacements, generated shop interior GLBs, walkable shop rooms, shopkeeper-driven full-screen shop menus, multi-party ATB HUD coverage, and enemy attack camera windup/impact frames.
+These screenshots are intentionally committed as browseable QA artifacts for the current first-town sandbox state. The source smoke run passed before copying these files. Headless Playwright captures can show lower FPS overlays than the visible in-app browser; use the visible browser for performance judgment. This pass includes high-detail Meshy NPC replacements, generated shop interior GLBs, walkable shop rooms, shopkeeper-driven full-screen shop menus, the reference-inspired battle command menu, multi-party ATB HUD coverage, and enemy attack camera windup/impact frames.
 
 ## Coverage
 
 - `town/` - first-town gate view, opening caption, free-camera check, and visible in-app browser title check.
 - `shops/` - weapon shop walkable room plus full-screen weapon/potion shop menus.
-- `battle/` - boss battle HUD, multi-party ATB, enemy Pulse Ram camera, mage Thunderfall, Ryuji Cure, Ryuji Chi Breaker, victory XP, and game over.
+- `battle/` - reference-inspired command menu, boss battle HUD, multi-party ATB, enemy Pulse Ram camera, mage Thunderfall, Ryuji Cure, Ryuji Chi Breaker, victory XP, and game over.
 - `npcs/` - generated NPC closeups plus the asset-room NPC lineup.
 - `buildings/` - front and collision-edge checks for each town building.
 - `walls/` - wall/corner/gate checks including the south wall near `x=-2.8, z=12.7`.
@@ -41,6 +41,7 @@ These screenshots are intentionally committed as browseable QA artifacts for the
 - `battle/battle-hud-boss-party.png`
 - `battle/battle-hud-mobile-party-atb.png`
 - `battle/battle-hud-multi-atb-ready.png`
+- `battle/battle-menu-reference-layout.png`
 - `battle/battle-mage-thunderfall-charge.png`
 - `battle/battle-mage-thunderfall-impact.png`
 - `battle/battle-mage-thunderfall-overhead.png`
