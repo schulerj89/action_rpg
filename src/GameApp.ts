@@ -685,6 +685,7 @@ export class GameApp {
       return;
     }
 
+    await this.shopInteriors.loadGeneratedAssets();
     await this.irisTransition(() => {
       this.currentRoom = 'shop';
       this.town.root.visible = false;
@@ -891,7 +892,7 @@ export class GameApp {
     this.hero.root.rotation.y = Math.PI;
     setYawForward(this.hero.root.rotation.y, this.heroForward);
     this.openingCaption.hidden = false;
-    this.openingCaptionText.textContent = 'Ryuji reaches the square as Pip stumbles near the well.';
+    this.openingCaptionText.textContent = 'Ryuji reaches the well as Pip stumbles back from the north wall.';
     this.cameraRig.setDebugPose(new Vector3(3.8, 2.15, 7.35), new Vector3(2.6, 1.05, 3.8), 43, 'opening.helping-pip');
     this.hero.play('run', { fadeSeconds: 0.08 });
     await this.waitForOpeningCaption(2450);
@@ -900,12 +901,12 @@ export class GameApp {
     this.vfx.setAura(true, 'healing');
     this.vfx.healingBloomAt(new Vector3(3.15, 0, 3.55));
     this.audio.playHealing();
-    this.openingCaptionText.textContent = 'A quiet pulse steadies him before the storm can take hold.';
+    this.openingCaptionText.textContent = 'A quiet pulse steadies the ember burn before panic reaches the square.';
     await this.waitForOpeningCaption(2850);
 
     this.vfx.setAura(false);
     this.hero.play('explorationIdle');
-    this.openingCaptionText.textContent = 'The north gate glows. The first battle waits beyond town.';
+    this.openingCaptionText.textContent = 'The well hums beneath the stone. Beyond the gate, something has heard it.';
     this.cameraRig.setDebugPose(new Vector3(0, 4.2, -8.4), new Vector3(0, 1.2, -16.9), 46, 'opening.north-gate');
     await this.waitForOpeningCaption(2600);
 

@@ -239,7 +239,7 @@ export const firstTownDetailAssets: TownAssetPlacement[] = [
 ];
 
 export const firstTownWallSegments: TownAssetPlacement[] = [
-  ...[-12, -7, 7, 12].map((x) => ({
+  ...[-16.6, -12, -7, 7, 12, 16.6].map((x) => ({
     assetId: 'town-wall-segment' as const,
     hiddenInCombat: true,
     id: `north-wall-${x}`,
@@ -253,7 +253,7 @@ export const firstTownWallSegments: TownAssetPlacement[] = [
     position: new Vector3(x, 0, 14.0),
     targetLongestSide: 6.25,
   })),
-  ...[-12, -7, -2, 3, 8, 13].flatMap((z) => [
+  ...[-15.2, -12, -7, -2, 3, 8, 13].flatMap((z) => [
     {
       assetId: 'town-wall-segment' as const,
       hiddenInCombat: true,

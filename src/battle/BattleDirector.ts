@@ -330,6 +330,7 @@ export class BattleDirector {
         id: actor.id,
         lastXpGained: actor.lastXpGained,
         level: actor.level,
+        portraitUrl: actor.portraitUrl,
         role: actor.role,
         xp: actor.xp,
       })),

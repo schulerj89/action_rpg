@@ -1,10 +1,10 @@
 {
   "assetId": "npc-elder",
   "fileName": "npc-elder.glb",
-  "previewTaskId": "019ecf3c-f1c4-74ee-a708-acd5e6e578b5",
-  "outputTaskId": "019ecf3e-2b9d-752e-9d6f-fed3518f9453",
+  "previewTaskId": "019ed0f0-026e-7410-b891-cc7d8a7a0390",
+  "outputTaskId": "019ed0f1-9363-7d32-906d-be7cf92d7eb7",
   "refined": true,
-  "targetPolycount": 1900,
-  "bytes": 3333384,
-  "generatedAt": "2026-06-16T07:04:59.403Z"
+  "targetPolycount": 65000,
+  "bytes": 37383144,
+  "generatedAt": "2026-06-16T15:01:24.222Z"
 }

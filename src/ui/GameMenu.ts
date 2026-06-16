@@ -1,14 +1,33 @@
-import type { BattleSnapshot } from '../core/types';
+import type { BattleSnapshot, PartyCombatantSnapshot } from '../core/types';
+import { gameVersion } from '../config/version';
 import { getItemDefinition } from '../config/economy';
 import type { EconomySnapshot } from './ShopPanel';
 
-type MenuTab = 'equipment' | 'help' | 'party' | 'stats';
+type MenuTab = 'equipment' | 'help' | 'items' | 'party' | 'skills' | 'status' | 'system';
+
+const menuDescriptions: Record<MenuTab, string> = {
+  equipment: 'Weapons, equipped moves, and combat loadouts.',
+  help: 'Controls and debug-room shortcuts.',
+  items: 'Inventory, gold, and field supplies.',
+  party: 'Formation and active party state.',
+  skills: 'Current combat commands by character.',
+  status: 'Party health, resources, and core stats.',
+  system: 'Version, save status, and debug access.',
+};
+
+const statLabels = {
+  defense: 'DEF',
+  dexterity: 'DEX',
+  focus: 'FOC',
+  strength: 'STR',
+  vitality: 'VIT',
+};
 
 export class GameMenu {
   private readonly root: HTMLElement;
   private readonly content: HTMLElement;
   private readonly tabButtons: HTMLButtonElement[];
-  private activeTab: MenuTab = 'stats';
+  private activeTab: MenuTab = 'status';
   private latestEconomy?: EconomySnapshot;
   private latestSnapshot?: BattleSnapshot;
 
@@ -72,100 +91,239 @@ export class GameMenu {
 
   private render(): void {
     this.tabButtons.forEach((button) => {
-      button.classList.toggle('selected', button.dataset.menuTab === this.activeTab);
+      const tab = button.dataset.menuTab as MenuTab;
+      button.classList.toggle('selected', tab === this.activeTab);
+      button.title = menuDescriptions[tab];
     });
 
     const snapshot = this.latestSnapshot;
     if (!snapshot) {
-      this.content.textContent = 'Loading party data...';
+      this.content.innerHTML = '<div class="menu-empty">Loading party data...</div>';
       return;
     }
 
-    if (this.activeTab === 'stats') {
-      this.renderStats(snapshot);
+    this.content.innerHTML = '';
+    const panel = document.createElement('section');
+    panel.className = 'menu-detail-panel';
+    panel.append(this.createPanelHeader(this.activeTab));
+
+    if (this.activeTab === 'status') {
+      this.renderStatus(panel, snapshot);
+    } else if (this.activeTab === 'items') {
+      this.renderItems(panel);
     } else if (this.activeTab === 'equipment') {
-      this.renderEquipment(snapshot);
+      this.renderEquipment(panel, snapshot);
+    } else if (this.activeTab === 'skills') {
+      this.renderSkills(panel, snapshot);
     } else if (this.activeTab === 'party') {
-      this.renderParty(snapshot);
+      this.renderParty(panel, snapshot);
+    } else if (this.activeTab === 'system') {
+      this.renderSystem(panel, snapshot);
     } else {
-      this.renderHelp();
+      this.renderHelp(panel);
     }
+
+    this.content.append(panel);
   }
 
-  private renderStats(snapshot: BattleSnapshot): void {
-    this.content.innerHTML = '';
+  private createPanelHeader(tab: MenuTab): HTMLElement {
+    const header = document.createElement('header');
+    header.className = 'menu-panel-header';
+    header.innerHTML = `
+      <strong>${labelForTab(tab)}</strong>
+      <span>${menuDescriptions[tab]}</span>
+    `;
+    return header;
+  }
+
+  private renderStatus(panel: HTMLElement, snapshot: BattleSnapshot): void {
+    const grid = document.createElement('div');
+    grid.className = 'menu-party-grid';
+    snapshot.party.forEach((member) => {
+      const card = this.createMemberCard(member);
+      card.append(this.createResourceBars(member), this.createStatGrid(member));
+      grid.append(card);
+    });
+    panel.append(grid);
+  }
+
+  private renderItems(panel: HTMLElement): void {
+    const economy = this.latestEconomy;
+    const list = document.createElement('div');
+    list.className = 'menu-list';
+    const gold = document.createElement('article');
+    gold.className = 'menu-row menu-row-emphasis';
+    gold.innerHTML = `<strong>Gold</strong><span>${economy?.gold ?? 0}</span><small>Current town wallet</small>`;
+    list.append(gold);
+
+    const inventory = Object.entries(economy?.inventory ?? {});
+    if (!inventory.length) {
+      const empty = document.createElement('article');
+      empty.className = 'menu-row';
+      empty.innerHTML = '<strong>Inventory</strong><span>Empty</span><small>No items are currently carried.</small>';
+      list.append(empty);
+    } else {
+      inventory.forEach(([id, count]) => {
+        const item = getItemDefinition(id);
+        const row = document.createElement('article');
+        row.className = 'menu-row';
+        row.innerHTML = `
+          <strong>${item?.name ?? id}</strong>
+          <span>x${count}</span>
+          <small>${item?.description ?? 'Debug inventory item.'}</small>
+        `;
+        list.append(row);
+      });
+    }
+    panel.append(list);
+  }
+
+  private renderEquipment(panel: HTMLElement, snapshot: BattleSnapshot): void {
+    const list = document.createElement('div');
+    list.className = 'menu-list';
+    const economy = this.latestEconomy;
+
+    const gold = document.createElement('article');
+    gold.className = 'menu-row menu-row-emphasis';
+    gold.innerHTML = `<strong>Gold</strong><span>${economy?.gold ?? 0}</span><small>Buy weapons in town shops.</small>`;
+    list.append(gold);
+
+    snapshot.party.forEach((member) => {
+      const equippedId = economy?.equippedWeaponByHero[member.id];
+      const weapon = equippedId ? (getItemDefinition(equippedId)?.name ?? equippedId) : 'None';
+      const row = document.createElement('article');
+      row.className = 'menu-row menu-loadout-row';
+      row.innerHTML = `
+        <strong>${member.name}</strong>
+        <span>${weapon}</span>
+        <small>${member.equippedMoves.map((move) => move.name).join(' / ')}</small>
+      `;
+      list.append(row);
+    });
+    panel.append(list);
+  }
+
+  private renderSkills(panel: HTMLElement, snapshot: BattleSnapshot): void {
     const grid = document.createElement('div');
     grid.className = 'menu-card-grid';
     snapshot.party.forEach((member) => {
       const card = document.createElement('article');
-      card.className = 'menu-character-card';
-      card.innerHTML = `
-        <strong>${member.name}</strong>
-        <span>${member.role} | Level ${member.level} | ${member.xp} XP</span>
-        <div class="menu-stat-list">
-          <span>HP ${member.hp}/${member.maxHp}</span>
-          <span>${member.role === 'Mage' ? 'Mana' : 'Chi'} ${member.chi}/${member.maxChi}</span>
-          <span>STR ${member.stats.strength}</span>
-          <span>DEX ${member.stats.dexterity}</span>
-          <span>VIT ${member.stats.vitality}</span>
-          <span>FOC ${member.stats.focus}</span>
-          <span>DEF ${member.stats.defense}</span>
-        </div>
-      `;
+      card.className = 'menu-skill-card';
+      card.innerHTML = `<strong>${member.name}</strong><span>${member.role}</span>`;
+      const moves = document.createElement('div');
+      moves.className = 'menu-command-list';
+      member.equippedMoves.forEach((move, index) => {
+        const row = document.createElement('div');
+        row.className = 'menu-command-row';
+        row.innerHTML = `<b>${index + 1}</b><span>${move.name}</span><small>${move.chiCost ? `${move.chiCost} cost` : 'Free'}</small>`;
+        moves.append(row);
+      });
+      card.append(moves);
       grid.append(card);
     });
-    this.content.append(grid);
+    panel.append(grid);
   }
 
-  private renderEquipment(snapshot: BattleSnapshot): void {
-    this.content.innerHTML = '';
-    const list = document.createElement('div');
-    list.className = 'menu-list';
-    const economy = this.latestEconomy;
-    snapshot.party.forEach((member) => {
-      const row = document.createElement('article');
-      row.className = 'menu-row';
-      const equippedId = economy?.equippedWeaponByHero[member.id];
-      const weapon = equippedId ? (getItemDefinition(equippedId)?.name ?? equippedId) : 'None';
-      row.innerHTML = `<strong>${member.name}</strong><span>${weapon}</span><small>${member.equippedMoves
-        .map((move) => move.name)
-        .join(' / ')}</small>`;
-      list.append(row);
-    });
-    if (economy) {
-      const gold = document.createElement('article');
-      gold.className = 'menu-row';
-      gold.innerHTML = `<strong>Gold</strong><span>${economy.gold}</span><small>${Object.entries(economy.inventory)
-        .map(([id, count]) => `${getItemDefinition(id)?.name ?? id} x${count}`)
-        .join(' / ')}</small>`;
-      list.prepend(gold);
-    }
-    this.content.append(list);
-  }
-
-  private renderParty(snapshot: BattleSnapshot): void {
-    this.content.innerHTML = '';
+  private renderParty(panel: HTMLElement, snapshot: BattleSnapshot): void {
     const list = document.createElement('div');
     list.className = 'menu-list';
     snapshot.party.forEach((member, index) => {
       const row = document.createElement('article');
-      row.className = 'menu-row';
-      row.innerHTML = `<strong>${index === 0 ? 'Leader' : 'Ally'}: ${member.name}</strong><span>${
-        member.active ? 'Active' : 'Reserve'
-      }</span><small>${member.role}</small>`;
+      row.className = 'menu-row menu-party-row';
+      row.innerHTML = `
+        <strong>${index === 0 ? 'Leader' : 'Ally'}: ${member.name}</strong>
+        <span>${member.active ? 'Active' : 'Reserve'}</span>
+        <small>${member.role} | ATB ${Math.round(member.atb)} | Last XP +${member.lastXpGained}</small>
+      `;
       list.append(row);
     });
-    this.content.append(list);
+    panel.append(list);
   }
 
-  private renderHelp(): void {
-    this.content.innerHTML = `
-      <div class="menu-list">
-        <article class="menu-row"><strong>Move</strong><span>W/Up moves forward. A/D or arrows pivot. S/Down turns around.</span></article>
-        <article class="menu-row"><strong>Interact</strong><span>E, Space, or Enter talks to nearby people.</span></article>
-        <article class="menu-row"><strong>Camera</strong><span>Right click enters free camera and looks around. Right Shift toggles it; WASD/QE fly and Left Shift speeds up.</span></article>
-        <article class="menu-row"><strong>Debug</strong><span>Use the debug panel to jump to tests, start battles, and replay scenes.</span></article>
+  private renderSystem(panel: HTMLElement, snapshot: BattleSnapshot): void {
+    const list = document.createElement('div');
+    list.className = 'menu-list';
+    const rows = [
+      ['Version', `v${gameVersion}`, 'First-town vertical slice build.'],
+      ['Scene', snapshot.phase === 'exploration' ? 'Town' : 'Battle', 'Runtime state for debugging and smoke tests.'],
+      ['Save', 'Coming soon', 'No persistent save file is wired yet.'],
+      ['Debug Rooms', 'Available', 'Use the debug panel for shops, assets, cinematic, battle, and poses.'],
+    ];
+    rows.forEach(([title, value, detail]) => {
+      const row = document.createElement('article');
+      row.className = 'menu-row';
+      row.innerHTML = `<strong>${title}</strong><span>${value}</span><small>${detail}</small>`;
+      list.append(row);
+    });
+    panel.append(list);
+  }
+
+  private renderHelp(panel: HTMLElement): void {
+    const list = document.createElement('div');
+    list.className = 'menu-list';
+    [
+      ['Move', 'W or Up moves forward. A/D or Left/Right pivot. S or Down turns around.'],
+      ['Interact', 'E, Space, or Enter talks, advances dialogue, exits shops, or confirms title choices.'],
+      ['Menu', 'M opens this RPG menu. Escape or Close returns to the game.'],
+      ['Camera', 'Right click enters free camera. Right Shift toggles it; WASD/QE fly and Left Shift speeds up.'],
+      ['Debug', 'Use the debug panel to teleport, test battles, replay the opening, inspect assets, and open shops.'],
+    ].forEach(([title, detail]) => {
+      const row = document.createElement('article');
+      row.className = 'menu-row';
+      row.innerHTML = `<strong>${title}</strong><span>${detail}</span><small>Available in the current sandbox build.</small>`;
+      list.append(row);
+    });
+    panel.append(list);
+  }
+
+  private createMemberCard(member: PartyCombatantSnapshot): HTMLElement {
+    const card = document.createElement('article');
+    card.className = 'menu-character-card';
+    card.innerHTML = `
+      <img src="${member.portraitUrl}" alt="${member.name}" />
+      <div class="menu-character-main">
+        <strong>${member.name}</strong>
+        <span>${member.role} | Level ${member.level} | ${member.xp} XP</span>
+        <small>${member.active ? 'Active party member' : 'Reserve party member'}</small>
       </div>
     `;
+    return card;
   }
+
+  private createResourceBars(member: PartyCombatantSnapshot): HTMLElement {
+    const resources = document.createElement('div');
+    resources.className = 'menu-resource-list';
+    const resourceName = member.role === 'Mage' ? 'Mana' : 'Chi';
+    resources.innerHTML = `
+      ${resourceBar('HP', member.hp, member.maxHp)}
+      ${resourceBar(resourceName, member.chi, member.maxChi)}
+    `;
+    return resources;
+  }
+
+  private createStatGrid(member: PartyCombatantSnapshot): HTMLElement {
+    const stats = document.createElement('div');
+    stats.className = 'menu-stat-list';
+    Object.entries(statLabels).forEach(([key, label]) => {
+      const value = member.stats[key as keyof typeof member.stats];
+      const stat = document.createElement('span');
+      stat.innerHTML = `<b>${label}</b>${value}`;
+      stats.append(stat);
+    });
+    return stats;
+  }
+}
+
+function labelForTab(tab: MenuTab): string {
+  return tab[0].toUpperCase() + tab.slice(1);
+}
+
+function resourceBar(label: string, value: number, max: number): string {
+  const percent = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
+  return `
+    <div class="menu-resource">
+      <span>${label} ${value}/${max}</span>
+      <div class="menu-resource-track"><div style="--resource: ${percent.toFixed(1)}%"></div></div>
+    </div>
+  `;
 }

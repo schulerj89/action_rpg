@@ -1,10 +1,10 @@
 {
   "assetId": "npc-weapon-smith",
   "fileName": "npc-weapon-smith.glb",
-  "previewTaskId": "019ecf36-cf22-7111-aec2-ebaf15cf083c",
-  "outputTaskId": "019ecf38-6eee-73bc-9c35-66cea32f70ea",
+  "previewTaskId": "019ed0b7-b5d1-787a-9c59-2988eaf058eb",
+  "outputTaskId": "019ed0b9-65f5-7c0e-8657-3fd9cc7eff08",
   "refined": true,
-  "targetPolycount": 1800,
-  "bytes": 2905072,
-  "generatedAt": "2026-06-16T06:58:48.002Z"
+  "targetPolycount": 60000,
+  "bytes": 34788408,
+  "generatedAt": "2026-06-16T13:59:54.918Z"
 }

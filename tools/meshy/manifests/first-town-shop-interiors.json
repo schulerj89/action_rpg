@@ -1,0 +1,30 @@
+{
+  "apiKeyFile": "C:/Users/joshs/Projects/meshy-api-key.txt",
+  "outputDir": "public/assets/town/first-town/interiors",
+  "metadataDir": "tools/meshy/generated/first-town-shop-interiors",
+  "defaultModel": "meshy-6",
+  "defaultModelType": "standard",
+  "defaultShouldRemesh": true,
+  "defaultTopology": "triangle",
+  "defaultDecimationMode": 1,
+  "defaultEnablePbr": true,
+  "defaultHdTexture": true,
+  "defaultTargetFormats": ["glb"],
+  "maxAssetBytes": 50000000,
+  "assets": [
+    {
+      "id": "weapon-shop-interior",
+      "fileName": "weapon-shop-interior.glb",
+      "targetPolycount": 85000,
+      "prompt": "high-detail stylized chibi fantasy RPG weapon shop interior diorama, open front room, timber walls, stone floor, wooden counter, weapon racks with wraps tonfa and practice blades, small forge, crates, lanterns, no characters, no readable text, no logo, isolated room prop",
+      "texturePrompt": "warm wood beams, gray stone floor, red cloth accents, brass metal trim, silver training weapons, orange forge glow, cozy fantasy RPG shop texture, no letters, no logo"
+    },
+    {
+      "id": "potion-shop-interior",
+      "fileName": "potion-shop-interior.glb",
+      "targetPolycount": 85000,
+      "prompt": "high-detail stylized chibi fantasy RPG potion shop interior diorama, open front room, plaster walls, stone floor, curved counter, shelves packed with colorful bottles, glowing cauldron, herb bundles, lanterns, no characters, no readable text, no logo, isolated room prop",
+      "texturePrompt": "white plaster, warm wood shelves, purple cloth accents, blue green pink potion bottles, soft green cauldron glow, cozy fantasy RPG shop texture, no letters, no logo"
+    }
+  ]
+}

@@ -4,7 +4,7 @@ import { mkdirSync } from 'node:fs';
 const qaScreenshotDir = 'test-results/qa-screens/current';
 
 test('RPG sandbox battle path loads, resolves actions, wins, and resets', async ({ page }) => {
-  test.setTimeout(360_000);
+  test.setTimeout(600_000);
   const errors: string[] = [];
   const assetErrors: string[] = [];
   mkdirSync(qaScreenshotDir, { recursive: true });
@@ -39,7 +39,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('title-screen')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().townAssetInfo.loading)).toBe(true);
   await expect
-    .poll(() => page.evaluate(() => [...(window.__rpgTest?.getState().meshyProps ?? [])].sort()), { timeout: 90_000 })
+    .poll(() => page.evaluate(() => [...(window.__rpgTest?.getState().meshyProps ?? [])].sort()), { timeout: 180_000 })
     .toEqual([
       'npc-elder',
       'npc-potion-keeper',
@@ -64,6 +64,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().townAssetInfo.instanceCounts['town-wall-segment']))
     .toBeGreaterThan(10);
+  await expect(page.getByTestId('title-version')).toContainText('v0.1.0');
   const titleBox = await page.locator('.title-stack h1').boundingBox();
   const startBox = await page.getByTestId('title-start').boundingBox();
   expect(Math.abs((titleBox?.x ?? 0) + (titleBox?.width ?? 0) / 2 - ((startBox?.x ?? 0) + (startBox?.width ?? 0) / 2))).toBeLessThan(12);
@@ -87,6 +88,14 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await page.screenshot({ path: `${qaScreenshotDir}/menu-title-panel.png` });
   await page.getByTestId('title-back').click();
   await expect(page.getByTestId('title-menu-panel')).toBeHidden();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('title-help-panel')).toBeVisible();
+  await expect(page.getByTestId('title-help-panel')).toContainText('Right Shift');
+  await page.screenshot({ path: `${qaScreenshotDir}/menu-title-help.png` });
+  await page.getByTestId('title-help-back').click();
+  await expect(page.getByTestId('title-help-panel')).toBeHidden();
+  await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('title-screen')).toBeHidden();
@@ -187,12 +196,12 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await page.evaluate(() => window.__rpgTest?.interactWithNpc('elder'));
   await expect(page.getByTestId('dialogue-box')).toBeVisible();
   await expect(page.getByTestId('dialogue-speaker')).toHaveText('Elder Ren');
-  await expect(page.getByTestId('dialogue-text')).toContainText('Aetherwake');
+  await expect(page.getByTestId('dialogue-text')).toContainText('ward-stone');
   const dialogueBox = await page.getByTestId('dialogue-box').boundingBox();
   const debugBox = await page.getByTestId('debug-panel').boundingBox();
   expect((dialogueBox?.x ?? 0) + (dialogueBox?.width ?? 0)).toBeLessThan((debugBox?.x ?? 0) - 8);
   await page.getByTestId('dialogue-next').click();
-  await expect(page.getByTestId('dialogue-text')).toContainText('thunder');
+  await expect(page.getByTestId('dialogue-text')).toContainText('Shops');
   await page.getByTestId('dialogue-next').click();
   await expect(page.getByTestId('dialogue-box')).toBeHidden();
 

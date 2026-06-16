@@ -1,0 +1,11 @@
+{
+  "assetId": "weapon-shop-interior",
+  "fileName": "weapon-shop-interior.glb",
+  "previewTaskId": "019ed0c6-ed07-7dad-99cb-44e73aef2fe5",
+  "outputTaskId": "019ed0ca-401a-70f8-9247-ffd4ef469944",
+  "refined": true,
+  "targetPolycount": 85000,
+  "qualityPreset": "meshy-6-standard-ultra-hd-pbr",
+  "bytes": 40463384,
+  "generatedAt": "2026-06-16T14:20:25.416Z"
+}

@@ -1,10 +1,10 @@
 {
   "assetId": "npc-potion-keeper",
   "fileName": "npc-potion-keeper.glb",
-  "previewTaskId": "019ecf39-bc98-743e-9760-53a0aac1727c",
-  "outputTaskId": "019ecf3b-5bd0-74a7-8b9f-6bb4cd1a3b4b",
+  "previewTaskId": "019ed0e1-7d79-79cd-9a7f-1d763d48b852",
+  "outputTaskId": "019ed0e3-22b6-7871-8e39-f68a2664417e",
   "refined": true,
-  "targetPolycount": 1800,
-  "bytes": 2733652,
-  "generatedAt": "2026-06-16T07:02:18.238Z"
+  "targetPolycount": 60000,
+  "bytes": 33369448,
+  "generatedAt": "2026-06-16T14:45:26.448Z"
 }

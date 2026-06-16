@@ -6,11 +6,11 @@
       "start": "hello",
       "nodes": {
         "hello": {
-          "text": "The training ring north of town is open. Bring me thunder stories when you return.",
+          "text": "The north wall guards are burning through gear faster than I can mend it. Test those wraps outside the gate.",
           "next": "forge"
         },
         "forge": {
-          "text": "I can shape a blade, but Aetherwake chooses the hand that carries it.",
+          "text": "Aetherwake does not need heroes yet. It needs steady hands that come back with everyone still breathing.",
           "next": null
         }
       }
@@ -20,7 +20,7 @@
       "start": "hello",
       "nodes": {
         "hello": {
-          "text": "Cure is magic, not chi. Mira should call on the quiet light and let it answer.",
+          "text": "The ember burns do not spread if you cool them fast. Keep potions ready before you cross the north gate.",
           "next": null
         }
       }
@@ -30,11 +30,11 @@
       "start": "hello",
       "nodes": {
         "hello": {
-          "text": "Aetherwake began as a town that remembered tomorrow before yesterday could end.",
+          "text": "The old ward-stone sleeps beneath our well. When it hums, creatures beyond the wall answer.",
           "next": "warning"
         },
         "warning": {
-          "text": "When the sky splits blue, listen for what the thunder is trying to name.",
+          "text": "Defend the wall, but listen to the town first. Shops, people, and wells all remember different parts of the same warning.",
           "next": null
         }
       }
@@ -44,7 +44,7 @@
       "start": "hello",
       "nodes": {
         "hello": {
-          "text": "I saw a red core at the training field. It just floats there like it owns the place.",
+          "text": "I saw ember eyes past the training ring. They stopped when the well rang, like they were waiting for a name.",
           "next": null
         }
       }

@@ -1,5 +1,6 @@
 import './style.css';
 import { GameApp } from './GameApp';
+import { gameVersion } from './config/version';
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <canvas id="game-canvas" data-testid="game-canvas" aria-label="Action RPG sandbox"></canvas>
@@ -7,14 +8,25 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <section class="title-screen" data-testid="title-screen">
     <div class="title-stack">
       <h1>Aetherwake</h1>
+      <span class="title-version" data-testid="title-version">v${gameVersion}</span>
       <nav class="title-menu">
         <button type="button" data-testid="title-start">Start</button>
-        <button type="button" data-testid="title-menu">Menu</button>
+        <button type="button" data-testid="title-menu">Settings</button>
+        <button type="button" data-testid="title-help">Help</button>
       </nav>
       <div class="title-menu-panel" data-testid="title-menu-panel" hidden>
         <strong>Settings</strong>
         <span>Coming soon</span>
-        <button type="button" data-testid="title-back">Back</button>
+        <button type="button" data-title-panel-back data-testid="title-back">Back</button>
+      </div>
+      <div class="title-menu-panel title-help-panel" data-testid="title-help-panel" hidden>
+        <strong>Controls</strong>
+        <span>Move: W or Up</span>
+        <span>Turn: A/D or Left/Right</span>
+        <span>Interact: E, Space, or Enter</span>
+        <span>Menu: M</span>
+        <span>Free Camera: Right Click or Right Shift</span>
+        <button type="button" data-title-panel-back data-testid="title-help-back">Back</button>
       </div>
     </div>
   </section>
@@ -43,22 +55,31 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 
   <section class="opening-caption" data-testid="opening-caption" hidden>
     <strong>Aetherwake</strong>
-    <span data-testid="opening-caption-text">Ryuji reaches the town as the first storm breaks.</span>
+    <span data-testid="opening-caption-text">Ryuji reaches the well as the north wall alarm fades.</span>
   </section>
 
   <section class="game-menu" data-testid="game-menu" hidden>
     <div class="game-menu-shell">
       <header>
-        <strong>Aetherwake</strong>
+        <div>
+          <strong>Aetherwake</strong>
+          <span data-testid="menu-version">v${gameVersion}</span>
+        </div>
         <button type="button" class="ghost" data-testid="menu-close">Close</button>
       </header>
-      <nav class="game-menu-tabs">
-        <button type="button" data-menu-tab="stats" data-testid="menu-tab-stats">Stats</button>
+      <div class="game-menu-layout">
+      <nav class="game-menu-tabs" aria-label="Game menu">
+        <button type="button" data-menu-tab="status" data-testid="menu-tab-stats">Status</button>
+        <button type="button" data-menu-tab="items" data-testid="menu-tab-items">Items</button>
         <button type="button" data-menu-tab="equipment" data-testid="menu-tab-equipment">Equipment</button>
+        <button type="button" data-menu-tab="skills" data-testid="menu-tab-skills">Skills</button>
         <button type="button" data-menu-tab="party" data-testid="menu-tab-party">Party</button>
+        <button type="button" data-menu-tab="system" data-testid="menu-tab-system">System</button>
         <button type="button" data-menu-tab="help" data-testid="menu-tab-help">Help</button>
       </nav>
       <div class="game-menu-content" data-testid="menu-content"></div>
+      </div>
+      <footer class="game-menu-footer">M: close | Enter/Click: select | Gold and party state update live</footer>
     </div>
   </section>
 

@@ -3,36 +3,42 @@
   "outputDir": "public/assets/town/first-town/npcs",
   "metadataDir": "tools/meshy/generated/first-town-npcs",
   "defaultModel": "meshy-6",
+  "defaultModelType": "standard",
+  "defaultShouldRemesh": true,
+  "defaultTopology": "triangle",
+  "defaultDecimationMode": 1,
+  "defaultEnablePbr": true,
+  "defaultHdTexture": true,
   "defaultTargetFormats": ["glb"],
-  "maxAssetBytes": 9000000,
+  "maxAssetBytes": 45000000,
   "assets": [
     {
       "id": "npc-weapon-smith",
       "fileName": "npc-weapon-smith.glb",
-      "targetPolycount": 1800,
-      "prompt": "stylized low-poly chibi fantasy RPG blacksmith NPC, neutral standing idle pose, short sturdy body, brown apron, small hammer at belt, simple friendly face with two large clear black oval eyes, readable toy-like proportions, no weapon in hands, no readable text, no logo, isolated character",
-      "texturePrompt": "warm tan skin, dark hair, brown leather apron, muted orange scarf, simple black oval eyes, clean hand-painted low-poly game texture, no letters, no logo, no photorealism"
+      "targetPolycount": 60000,
+      "prompt": "high-detail stylized chibi fantasy RPG blacksmith NPC, neutral standing idle pose, short sturdy body, brown apron, small hammer at belt, clean symmetrical face, two large modeled glossy black oval eyes, toy-like proportions, no weapon in hands, no text, no logo, isolated character",
+      "texturePrompt": "warm tan skin, dark hair, brown leather apron, muted orange scarf, clean eyelids, glossy black oval eyes with small white highlights, hand-painted fantasy RPG texture, no letters, no logo"
     },
     {
       "id": "npc-potion-keeper",
       "fileName": "npc-potion-keeper.glb",
-      "targetPolycount": 1800,
-      "prompt": "stylized low-poly chibi fantasy RPG potion shopkeeper NPC, neutral standing idle pose, white and lavender robe, small potion satchel, simple friendly face with two large clear black oval eyes, readable toy-like proportions, no readable text, no logo, isolated character",
-      "texturePrompt": "warm tan skin, lavender and white cloth, small blue potion bottle accessories, simple black oval eyes, clean hand-painted low-poly game texture, no letters, no logo, no photorealism"
+      "targetPolycount": 60000,
+      "prompt": "high-detail stylized human chibi fantasy RPG potion shopkeeper NPC, neutral standing idle pose, white and lavender robe, small potion satchel, uncovered face, eyes open, two large modeled glossy purple oval eyes with black pupils, no mask, no goggles, no glasses, no face paint, no text, no logo, isolated character",
+      "texturePrompt": "warm tan skin, lavender and white cloth, blue potion bottle accessories, natural uncovered face, clean eyelids, open glossy purple eyes with black pupils and white highlights, hand-painted fantasy RPG texture, no letters, no logo, no mask, no goggles"
     },
     {
       "id": "npc-elder",
       "fileName": "npc-elder.glb",
-      "targetPolycount": 1900,
-      "prompt": "stylized low-poly chibi fantasy RPG village elder NPC, neutral standing idle pose, blue-gray robe, small walking staff, white eyebrows, simple friendly face with two large clear black oval eyes, readable toy-like proportions, no readable text, no logo, isolated character",
-      "texturePrompt": "warm tan skin, blue gray robe, pale hair and eyebrows, wooden staff, simple black oval eyes, clean hand-painted low-poly game texture, no letters, no logo, no photorealism"
+      "targetPolycount": 65000,
+      "prompt": "high-detail stylized elderly human chibi fantasy RPG village elder NPC, neutral standing idle pose, blue-gray robe with no hood, bald top with white side hair, white eyebrows and mustache, warm human skin, uncovered face, eyes open, large modeled glossy brown oval eyes with black pupils, no mask, no goggles, no glasses, no face paint, no text, no logo, isolated character",
+      "texturePrompt": "warm tan human skin, blue gray robe without hood, pale side hair, white eyebrows and mustache, natural uncovered face, clean eyelids, open glossy brown eyes with black pupils and white highlights, hand-painted fantasy RPG texture, no letters, no logo, no mask, no goggles"
     },
     {
       "id": "npc-runner",
       "fileName": "npc-runner.glb",
-      "targetPolycount": 1700,
-      "prompt": "stylized low-poly chibi fantasy RPG young town runner NPC, neutral standing idle pose, purple tunic, pink headband, small messenger pouch, simple friendly face with two large clear black oval eyes, readable toy-like proportions, no readable text, no logo, isolated character",
-      "texturePrompt": "warm tan skin, purple tunic, pink headband and sash, small brown messenger pouch, simple black oval eyes, clean hand-painted low-poly game texture, no letters, no logo, no photorealism"
+      "targetPolycount": 55000,
+      "prompt": "high-detail stylized chibi fantasy RPG young town runner NPC, neutral standing idle pose, purple tunic, pink headband, small messenger pouch, clean symmetrical face, two large modeled glossy black oval eyes, toy-like proportions, no text, no logo, isolated character",
+      "texturePrompt": "warm tan skin, purple tunic, pink headband and sash, brown messenger pouch, clean eyelids, glossy black oval eyes with small white highlights, hand-painted fantasy RPG texture, no letters, no logo"
     }
   ]
 }

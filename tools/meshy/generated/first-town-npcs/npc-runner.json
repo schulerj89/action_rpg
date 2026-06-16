@@ -1,10 +1,10 @@
 {
   "assetId": "npc-runner",
   "fileName": "npc-runner.glb",
-  "previewTaskId": "019ecf3f-6764-71ce-9041-d66db1587f57",
-  "outputTaskId": "019ecf40-b911-7b68-a6fb-1cf15214a24a",
+  "previewTaskId": "019ed0c2-ffd4-7c8c-b762-47892ef6c016",
+  "outputTaskId": "019ed0c4-8e22-7ce0-abce-0d71bf702474",
   "refined": true,
-  "targetPolycount": 1700,
-  "bytes": 2782632,
-  "generatedAt": "2026-06-16T07:08:10.218Z"
+  "targetPolycount": 55000,
+  "bytes": 34860344,
+  "generatedAt": "2026-06-16T14:12:23.399Z"
 }

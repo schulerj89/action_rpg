@@ -1,14 +1,18 @@
 import {
+  Box3,
   BoxGeometry,
   CylinderGeometry,
   Group,
   Mesh,
   MeshStandardMaterial,
+  Object3D,
   PlaneGeometry,
   SphereGeometry,
   Vector3,
 } from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { ShopId } from '../../config/economy';
+import { shopInteriorAssetDefinitions } from '../../config/shopInteriorAssets';
 
 const box = new BoxGeometry(1, 1, 1);
 const cylinder = new CylinderGeometry(0.5, 0.5, 1, 16);
@@ -35,12 +39,17 @@ export class ShopInteriorScene {
 
   private readonly weaponRoot = new Group();
   private readonly potionRoot = new Group();
+  private readonly generatedRoot = new Group();
+  private readonly generatedShopRoots = new Map<ShopId, Group>();
+  private readonly loader = new GLTFLoader();
   private activeShopId?: ShopId;
+  private loadPromise?: Promise<void>;
 
   constructor() {
     this.root.name = 'shop-interiors';
     this.root.visible = false;
-    this.root.add(createRoomShell(), this.weaponRoot, this.potionRoot);
+    this.generatedRoot.name = 'generated-shop-interiors';
+    this.root.add(createRoomShell(), this.weaponRoot, this.potionRoot, this.generatedRoot);
     this.weaponRoot.add(createWeaponShopInterior());
     this.potionRoot.add(createPotionShopInterior());
     this.showShop('weapons');
@@ -49,8 +58,12 @@ export class ShopInteriorScene {
 
   showShop(shopId: ShopId): void {
     this.activeShopId = shopId;
-    this.weaponRoot.visible = shopId === 'weapons';
-    this.potionRoot.visible = shopId === 'potions';
+    const generated = this.generatedShopRoots.get(shopId);
+    this.weaponRoot.visible = shopId === 'weapons' && !generated;
+    this.potionRoot.visible = shopId === 'potions' && !generated;
+    this.generatedShopRoots.forEach((root, id) => {
+      root.visible = id === shopId;
+    });
     this.root.visible = true;
   }
 
@@ -62,6 +75,59 @@ export class ShopInteriorScene {
   getActiveShopId(): ShopId | undefined {
     return this.activeShopId;
   }
+
+  async loadGeneratedAssets(): Promise<void> {
+    this.loadPromise ??= this.loadAllGeneratedAssets();
+    await this.loadPromise;
+  }
+
+  private async loadAllGeneratedAssets(): Promise<void> {
+    await Promise.all(
+      shopInteriorAssetDefinitions.map(async (definition) => {
+        try {
+          const gltf = await this.loader.loadAsync(definition.url);
+          const model = createGeneratedInterior(definition.id, gltf.scene, definition.targetLongestSide);
+          this.generatedShopRoots.set(definition.id, model);
+          this.generatedRoot.add(model);
+        } catch {
+          this.generatedShopRoots.delete(definition.id);
+        }
+      }),
+    );
+
+    if (this.activeShopId) {
+      this.showShop(this.activeShopId);
+    }
+  }
+}
+
+function createGeneratedInterior(shopId: ShopId, source: Object3D, targetLongestSide: number): Group {
+  const root = new Group();
+  root.name = `${shopId}-generated-interior`;
+  root.visible = false;
+  const model = source.clone(true);
+  model.name = `${shopId}-generated-interior-mesh`;
+  normalizeGeneratedInterior(model, targetLongestSide);
+  model.traverse((child) => {
+    child.castShadow = false;
+    child.receiveShadow = true;
+  });
+  root.add(model);
+  return root;
+}
+
+function normalizeGeneratedInterior(model: Object3D, targetLongestSide: number): void {
+  const box = new Box3().setFromObject(model);
+  const size = box.getSize(new Vector3());
+  const longestSide = Math.max(size.x, size.z, 0.001);
+  model.scale.setScalar(targetLongestSide / longestSide);
+  model.updateMatrixWorld(true);
+  const scaledBounds = new Box3().setFromObject(model);
+  model.position.set(
+    -(scaledBounds.min.x + scaledBounds.max.x) / 2,
+    -scaledBounds.min.y + 0.02,
+    -(scaledBounds.min.z + scaledBounds.max.z) / 2 - 0.55,
+  );
 }
 
 function createRoomShell(): Group {

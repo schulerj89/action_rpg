@@ -73,6 +73,7 @@ export interface PartyCombatantSnapshot extends CombatantSnapshot {
   id: string;
   lastXpGained: number;
   level: number;
+  portraitUrl: string;
   role: string;
   xp: number;
 }
