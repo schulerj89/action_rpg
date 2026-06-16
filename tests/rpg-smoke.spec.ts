@@ -67,6 +67,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   const titleBox = await page.locator('.title-stack h1').boundingBox();
   const startBox = await page.getByTestId('title-start').boundingBox();
   expect(Math.abs((titleBox?.x ?? 0) + (titleBox?.width ?? 0) / 2 - ((startBox?.x ?? 0) + (startBox?.width ?? 0) / 2))).toBeLessThan(12);
+  await page.screenshot({ path: `${qaScreenshotDir}/menu-title-screen.png` });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(100);
   const mobileTitleBox = await page.locator('.title-stack h1').boundingBox();
@@ -83,12 +84,14 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('title-menu-panel')).toBeVisible();
+  await page.screenshot({ path: `${qaScreenshotDir}/menu-title-panel.png` });
   await page.getByTestId('title-back').click();
   await expect(page.getByTestId('title-menu-panel')).toBeHidden();
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('title-screen')).toBeHidden();
   await expect(page.getByTestId('opening-caption')).toBeVisible({ timeout: 5_000 });
+  await page.screenshot({ path: `${qaScreenshotDir}/cinematic-opening-caption.png` });
   await expect(page.getByTestId('opening-caption')).toBeHidden({ timeout: 14_000 });
   await page.evaluate(() => window.__rpgTest?.muteAudio());
 
@@ -113,8 +116,10 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await page.getByTestId('menu-tab-equipment').click();
   await expect(page.getByTestId('menu-content')).toContainText('Moonlit Staff');
   await expect(page.getByTestId('menu-content')).toContainText('Gold');
+  await page.screenshot({ path: `${qaScreenshotDir}/menu-game-equipment.png` });
   await page.getByTestId('menu-tab-party').click();
   await expect(page.getByTestId('menu-content')).toContainText('Mira Sol');
+  await page.screenshot({ path: `${qaScreenshotDir}/menu-game-party.png` });
   await page.getByTestId('menu-tab-help').click();
   await expect(page.getByTestId('menu-content')).toContainText('Right Shift');
   await page.getByTestId('menu-close').click();
@@ -163,6 +168,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
   await page.evaluate(() => window.__rpgTest?.setFreeCamera(true));
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.mode)).toBe('free');
+  await page.screenshot({ path: `${qaScreenshotDir}/debug-free-camera-view.png` });
   await page.evaluate(() => window.__rpgTest?.setFreeCamera(false));
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.mode)).toBe('exploration');
   await page.mouse.move((canvasBox?.x ?? 0) + (canvasBox?.width ?? 0) / 2, (canvasBox?.y ?? 0) + (canvasBox?.height ?? 0) / 2);
@@ -254,6 +260,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
     window.__rpgTest?.getState().visualState.attachments.mira?.find((item) => item.id === 'staff')?.bounds,
   );
   expect((staffBounds?.max.y ?? 0) - (staffBounds?.min.y ?? 0)).toBeGreaterThan(0.4);
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-hud-boss-party.png` });
 
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().battleState))
@@ -351,9 +358,13 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('move-slot-2')).toBeEnabled();
 
   const heroHpBeforeHeal = await playerHp(page);
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(true));
   await page.getByTestId('move-slot-2').click();
   await expect(page.getByTestId('move-banner')).toContainText('Cure');
   await expect(page.getByTestId('move-banner')).toHaveClass(/healing/);
+  await page.waitForTimeout(140);
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-ryuji-cure-effect.png` });
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(false));
   await expect.poll(() => playerHp(page)).toBeGreaterThan(heroHpBeforeHeal);
   await waitForActionRecovery(page);
 
@@ -376,9 +387,15 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('move-slot-2')).toBeEnabled();
 
   const afterKickHp = await enemyHp(page);
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(true));
   await page.getByTestId('move-slot-2').click();
   await expect(page.getByTestId('move-banner')).toContainText('Chi Breaker');
   await expect(page.getByTestId('move-banner')).toHaveClass(/chi/);
+  await page.waitForTimeout(260);
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-ryuji-chi-breaker-charge.png` });
+  await page.waitForTimeout(1600);
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-ryuji-chi-breaker-impact.png` });
+  await page.evaluate(() => window.__rpgTest?.setQaCaptureMode(false));
   await expect.poll(() => enemyHp(page), { timeout: 8_000 }).toBeLessThan(afterKickHp);
   await waitForActionRecovery(page);
 
@@ -407,6 +424,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().battleState))
     .toBe('victory');
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().level)).toBe(2);
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-victory-xp-results.png` });
 
   await page.getByTestId('reset-battle').click();
   await expect(page.getByTestId('battle-ui')).toBeHidden();
@@ -425,6 +443,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().battleState))
     .toBe('gameOver');
+  await page.screenshot({ path: `${qaScreenshotDir}/battle-game-over-screen.png` });
 
   await page.getByTestId('return-debug-room').click();
   await expect(page.getByTestId('game-over-screen')).toBeHidden();
