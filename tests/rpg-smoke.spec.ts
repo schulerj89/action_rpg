@@ -1,7 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
+import { gameVersion } from '../src/config/version';
 
 const qaScreenshotDir = 'test-results/qa-screens/current';
+const expectedGameVersion = `v${gameVersion}`;
 
 test('RPG sandbox battle path loads, resolves actions, wins, and resets', async ({ page }) => {
   test.setTimeout(900_000);
@@ -64,7 +66,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().townAssetInfo.instanceCounts['town-wall-segment']))
     .toBeGreaterThan(10);
-  await expect(page.getByTestId('title-version')).toContainText('v0.2.2');
+  await expect(page.getByTestId('title-version')).toContainText(expectedGameVersion);
   const titleBox = await page.locator('.title-stack h1').boundingBox();
   const startBox = await page.getByTestId('title-start').boundingBox();
   expect(Math.abs((titleBox?.x ?? 0) + (titleBox?.width ?? 0) / 2 - ((startBox?.x ?? 0) + (startBox?.width ?? 0) / 2))).toBeLessThan(12);
@@ -126,6 +128,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
 
   await page.evaluate(() => window.__rpgTest?.toggleMenu());
   await expect(page.getByTestId('game-menu')).toBeVisible();
+  await expect(page.getByTestId('menu-version')).toContainText(expectedGameVersion);
   await page.getByTestId('menu-tab-equipment').click();
   await expect(page.getByTestId('menu-content')).toContainText('Moonlit Staff');
   await expect(page.getByTestId('menu-content')).toContainText('Gold');

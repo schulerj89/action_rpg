@@ -1,7 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync, rmSync } from 'node:fs';
+import { gameVersion } from '../src/config/version';
 
 const patchScreenshotRoot = 'test-results/patches';
+const expectedGameVersion = `v${gameVersion}`;
 
 test('v0.2.1 blocks global shortcuts during modal and battle states', async ({ page }) => {
   test.setTimeout(180_000);
@@ -10,7 +12,7 @@ test('v0.2.1 blocks global shortcuts during modal and battle states', async ({ p
   mkdirSync(screenshotDir, { recursive: true });
 
   await page.goto('/');
-  await expect(page.getByTestId('title-version')).toContainText('v0.2.2');
+  await expect(page.getByTestId('title-version')).toContainText(expectedGameVersion);
   await expect.poll(() => page.evaluate(() => Boolean(window.__rpgTest)), { timeout: 120_000 }).toBe(true);
   await page.evaluate(() => window.__rpgTest?.muteAudio());
 
@@ -68,7 +70,7 @@ test('v0.2.2 normalizes room visibility before replaying opening cinematic', asy
   mkdirSync(screenshotDir, { recursive: true });
 
   await page.goto('/');
-  await expect(page.getByTestId('title-version')).toContainText('v0.2.2');
+  await expect(page.getByTestId('title-version')).toContainText(expectedGameVersion);
   await expect.poll(() => page.evaluate(() => Boolean(window.__rpgTest)), { timeout: 120_000 }).toBe(true);
   await page.evaluate(() => window.__rpgTest?.muteAudio());
 
@@ -95,6 +97,25 @@ test('v0.2.2 normalizes room visibility before replaying opening cinematic', asy
   await expectTownRoomNormalized(page);
   await expect(page.getByTestId('battle-ui')).toBeHidden();
   await page.screenshot({ path: `${screenshotDir}/patch-0.2.2-battle-cinematic-normalized.png` });
+});
+
+test('v0.2.3 displays the shared game version on title and menu surfaces', async ({ page }) => {
+  test.setTimeout(120_000);
+  const screenshotDir = `${patchScreenshotRoot}/0.2.3`;
+  rmSync(screenshotDir, { force: true, recursive: true });
+  mkdirSync(screenshotDir, { recursive: true });
+
+  await page.goto('/');
+  await expect(page.getByTestId('title-version')).toContainText(expectedGameVersion);
+  await expect.poll(() => page.evaluate(() => Boolean(window.__rpgTest)), { timeout: 120_000 }).toBe(true);
+  await page.evaluate(() => window.__rpgTest?.muteAudio());
+
+  await page.getByTestId('title-start').click();
+  await expect(page.getByTestId('opening-caption')).toBeHidden({ timeout: 18_000 });
+  await page.keyboard.press('KeyM');
+  await expect(page.getByTestId('game-menu')).toBeVisible();
+  await expect(page.getByTestId('menu-version')).toContainText(expectedGameVersion);
+  await page.screenshot({ path: `${screenshotDir}/patch-0.2.3-shared-version-menu.png` });
 });
 
 async function expectCameraMode(page: Page, mode: string): Promise<void> {

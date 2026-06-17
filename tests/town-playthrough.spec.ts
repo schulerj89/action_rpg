@@ -1,7 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync, rmSync } from 'node:fs';
+import { gameVersion } from '../src/config/version';
 
 const playthroughScreenshotDir = 'test-results/playthrough/current';
+const expectedGameVersion = `v${gameVersion}`;
 
 test('scripted first town playthrough hides debug and reaches shops, NPCs, and battle', async ({ page }) => {
   test.setTimeout(420_000);
@@ -32,7 +34,7 @@ test('scripted first town playthrough hides debug and reaches shops, NPCs, and b
     window.__rpgTest?.muteAudio();
   });
   await expect(page.getByTestId('debug-panel')).toBeHidden();
-  await expect(page.getByTestId('title-version')).toContainText('v0.2.2');
+  await expect(page.getByTestId('title-version')).toContainText(expectedGameVersion);
   await waitForTownAssets(page);
 
   await capture(page, 'playthrough-01-title-screen.png');

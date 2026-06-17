@@ -23,3 +23,15 @@
 **Files:** `src/GameApp.ts`, `src/core/types.ts`, `tests/patch-regression.spec.ts`, version metadata.
 
 **Smoke coverage:** The patch regression smoke enters the weapon shop, asset inspection room, and battle room, replays the opening cinematic from each state, asserts `currentRoom === 'town'`, and verifies that only the town root remains visible.
+
+## v0.2.3 - Share Version Expectations Across Smoke Tests
+
+**Decision:** Import `gameVersion` into smoke tests and build all expected UI version labels from the same source used by the runtime.
+
+**Why:** The code-review pass found that version text was duplicated across `package.json`, `src/config/version.ts`, and hard-coded Playwright assertions. Every patch bump required manual literal updates in multiple tests, which made patch releases noisier and easier to break.
+
+**Patch type:** Small test refactor and metadata consistency fix.
+
+**Files:** `src/config/version.ts`, `tests/rpg-smoke.spec.ts`, `tests/town-playthrough.spec.ts`, `tests/patch-regression.spec.ts`, version metadata.
+
+**Smoke coverage:** The patch regression smoke verifies the title screen and in-game menu both display the shared `v0.2.3` value, while the long RPG and playthrough tests now reference the same imported version constant.
