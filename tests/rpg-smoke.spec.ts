@@ -64,7 +64,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect
     .poll(() => page.evaluate(() => window.__rpgTest?.getState().townAssetInfo.instanceCounts['town-wall-segment']))
     .toBeGreaterThan(10);
-  await expect(page.getByTestId('title-version')).toContainText('v0.1.2');
+  await expect(page.getByTestId('title-version')).toContainText('v0.2.0');
   const titleBox = await page.locator('.title-stack h1').boundingBox();
   const startBox = await page.getByTestId('title-start').boundingBox();
   expect(Math.abs((titleBox?.x ?? 0) + (titleBox?.width ?? 0) / 2 - ((startBox?.x ?? 0) + (startBox?.width ?? 0) / 2))).toBeLessThan(12);
@@ -103,6 +103,10 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await page.screenshot({ path: `${qaScreenshotDir}/cinematic-opening-caption.png` });
   await expect(page.getByTestId('opening-caption')).toBeHidden({ timeout: 14_000 });
   await page.evaluate(() => window.__rpgTest?.muteAudio());
+  await expect(page.getByTestId('objective-tracker')).toBeVisible();
+  await expect(page.getByTestId('objective-title')).toHaveText('Prepare for the north gate');
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().objectiveInfo.id)).toBe('aetherwake-prep');
+  await page.screenshot({ path: `${qaScreenshotDir}/menu-objective-tracker.png` });
 
   const canvasBox = await page.getByTestId('game-canvas').boundingBox();
   expect(canvasBox?.width).toBeGreaterThan(300);
@@ -126,6 +130,10 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('menu-content')).toContainText('Moonlit Staff');
   await expect(page.getByTestId('menu-content')).toContainText('Gold');
   await page.screenshot({ path: `${qaScreenshotDir}/menu-game-equipment.png` });
+  await page.getByTestId('menu-tab-journal').click();
+  await expect(page.getByTestId('menu-content')).toContainText('Prepare for the north gate');
+  await expect(page.getByTestId('menu-content')).toContainText('Hear Elder Ren');
+  await page.screenshot({ path: `${qaScreenshotDir}/menu-game-journal.png` });
   await page.getByTestId('menu-tab-party').click();
   await expect(page.getByTestId('menu-content')).toContainText('Mira Sol');
   await page.screenshot({ path: `${qaScreenshotDir}/menu-game-party.png` });
@@ -232,6 +240,7 @@ test('RPG sandbox battle path loads, resolves actions, wins, and resets', async 
   await expect(page.getByTestId('dialogue-text')).toContainText('Shops');
   await page.getByTestId('dialogue-next').click();
   await expect(page.getByTestId('dialogue-box')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().objectiveInfo.id)).toBe('north-gate-prowler');
 
   const startPosition = await page.evaluate(() => window.__rpgTest?.getState().position);
   await page.keyboard.down('ArrowUp');

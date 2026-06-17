@@ -2,13 +2,15 @@ import type { BattleSnapshot, PartyCombatantSnapshot } from '../core/types';
 import { gameVersion } from '../config/version';
 import { getItemDefinition } from '../config/economy';
 import type { EconomySnapshot } from './ShopPanel';
+import type { ObjectiveSnapshot } from './ObjectiveTracker';
 
-type MenuTab = 'equipment' | 'help' | 'items' | 'party' | 'skills' | 'status' | 'system';
+type MenuTab = 'equipment' | 'help' | 'items' | 'journal' | 'party' | 'skills' | 'status' | 'system';
 
 const menuDescriptions: Record<MenuTab, string> = {
   equipment: 'Weapons, equipped moves, and combat loadouts.',
   help: 'Controls and debug-room shortcuts.',
   items: 'Inventory, gold, and field supplies.',
+  journal: 'Current objective and route progress.',
   party: 'Formation and active party state.',
   skills: 'Current combat commands by character.',
   status: 'Party health, resources, and core stats.',
@@ -29,6 +31,7 @@ export class GameMenu {
   private readonly tabButtons: HTMLButtonElement[];
   private activeTab: MenuTab = 'status';
   private latestEconomy?: EconomySnapshot;
+  private latestObjective?: ObjectiveSnapshot;
   private latestSnapshot?: BattleSnapshot;
 
   constructor(root: Document) {
@@ -76,9 +79,10 @@ export class GameMenu {
     return !this.root.hidden;
   }
 
-  update(snapshot: BattleSnapshot, economy?: EconomySnapshot): void {
+  update(snapshot: BattleSnapshot, economy?: EconomySnapshot, objective?: ObjectiveSnapshot): void {
     this.latestSnapshot = snapshot;
     this.latestEconomy = economy;
+    this.latestObjective = objective;
     if (this.isActive()) {
       this.render();
     }
@@ -115,6 +119,8 @@ export class GameMenu {
       this.renderEquipment(panel, snapshot);
     } else if (this.activeTab === 'skills') {
       this.renderSkills(panel, snapshot);
+    } else if (this.activeTab === 'journal') {
+      this.renderJournal(panel);
     } else if (this.activeTab === 'party') {
       this.renderParty(panel, snapshot);
     } else if (this.activeTab === 'system') {
@@ -234,6 +240,42 @@ export class GameMenu {
         <strong>${index === 0 ? 'Leader' : 'Ally'}: ${member.name}</strong>
         <span>${member.active ? 'Active' : 'Reserve'}</span>
         <small>${member.role} | ATB ${Math.round(member.atb)} | Last XP +${member.lastXpGained}</small>
+      `;
+      list.append(row);
+    });
+    panel.append(list);
+  }
+
+  private renderJournal(panel: HTMLElement): void {
+    const objective = this.latestObjective;
+    const list = document.createElement('div');
+    list.className = 'menu-list menu-journal-list';
+
+    if (!objective) {
+      const empty = document.createElement('article');
+      empty.className = 'menu-row';
+      empty.innerHTML = '<strong>Journal</strong><span>Waiting</span><small>No objective has been published yet.</small>';
+      list.append(empty);
+      panel.append(list);
+      return;
+    }
+
+    const summary = document.createElement('article');
+    summary.className = 'menu-row menu-row-emphasis';
+    summary.innerHTML = `
+      <strong>${objective.title}</strong>
+      <span>${objective.id}</span>
+      <small>${objective.description}</small>
+    `;
+    list.append(summary);
+
+    objective.checklist.forEach((item) => {
+      const row = document.createElement('article');
+      row.className = `menu-row menu-journal-row ${item.complete ? 'complete' : ''}`;
+      row.innerHTML = `
+        <strong>${item.complete ? 'Done' : 'Open'}</strong>
+        <span>${item.label}</span>
+        <small>${item.complete ? 'Recorded in the current route log.' : 'Still needed for the current objective.'}</small>
       `;
       list.append(row);
     });

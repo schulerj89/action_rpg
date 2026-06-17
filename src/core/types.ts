@@ -276,6 +276,16 @@ export interface RpgTestApi {
       meters: number;
       nextMeters: number;
     };
+    objectiveInfo: {
+      checklist: Array<{
+        complete: boolean;
+        id: string;
+        label: string;
+      }>;
+      description: string;
+      id: string;
+      title: string;
+    };
     townAssetInfo: {
       failed: string[];
       fallbackIds: string[];

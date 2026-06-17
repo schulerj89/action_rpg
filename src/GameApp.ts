@@ -29,6 +29,7 @@ import { BattleHud } from './ui/BattleHud';
 import { DebugPanel } from './ui/DebugPanel';
 import { DialogueBox } from './ui/DialogueBox';
 import { GameMenu } from './ui/GameMenu';
+import { ObjectiveTracker, type ObjectiveSnapshot } from './ui/ObjectiveTracker';
 import { ShopPanel, type EconomySnapshot } from './ui/ShopPanel';
 import { TitleScreen } from './ui/TitleScreen';
 import { VfxController } from './vfx/VfxController';
@@ -73,6 +74,7 @@ export class GameApp {
   private readonly hero: HeroCharacter;
   private readonly hud: BattleHud;
   private readonly input = new InputController();
+  private readonly objectiveTracker: ObjectiveTracker;
   private readonly activeSupportHeroIds = new Set<SupportHeroId>(defaultActiveSupportHeroIds);
   private readonly explorationVelocity = new Vector3();
   private readonly heroForward = new Vector3(0, 0, -1);
@@ -103,6 +105,14 @@ export class GameApp {
   private readonly sceneLoadingTitle: HTMLElement;
   private readonly equippedWeaponByHero: Record<PartyHeroId, string> = { ...defaultEquippedWeaponByHero };
   private readonly inventory = new Map<string, number>(Object.entries(startingInventory));
+  private readonly objectiveProgress = {
+    defeatedProwler: false,
+    heardElder: false,
+    reachedStonewakeTrail: false,
+    receivedStonewakeObjective: false,
+    visitedPotionShop: false,
+    visitedWeaponShop: false,
+  };
   private reverseTurnTargetYaw?: number;
   private currentRoom: 'asset-room' | 'shop' | 'town' = 'town';
   private activeBattleSource: BattleStartSource = 'debug';
@@ -170,6 +180,7 @@ export class GameApp {
       },
     });
     this.dialogueBox = new DialogueBox(document);
+    this.objectiveTracker = new ObjectiveTracker(document);
     this.cameraRig = new CameraRig(this.world.camera, this.canvas, () => this.hero.root.position.clone());
     this.weather = new WeatherSystem(this.world.scene);
     this.assetRoom = new AssetInspectionRoom();
@@ -290,6 +301,7 @@ export class GameApp {
       }
 
       this.fixedFieldEnemyDefeated = true;
+      this.objectiveProgress.defeatedProwler = true;
       this.town.setFieldEnemyVisible(false);
       this.pendingPostBattleCinematic = !this.postBattleCinematicPlayed;
     });
@@ -428,6 +440,7 @@ export class GameApp {
       }
 
       this.updateOutsideEncounters();
+      this.updateRouteObjectiveProgress();
     } else {
       this.explorationVelocity.set(0, 0, 0);
       this.explorationStepDistance = 0;
@@ -467,6 +480,9 @@ export class GameApp {
     setYawForward(this.hero.root.rotation.y, this.heroForward);
 
     const hasMovementInput = input.forward > 0;
+    if (input.reverse && !hasMovementInput) {
+      this.explorationVelocity.set(0, 0, 0);
+    }
     this.targetVelocity.copy(this.heroForward).multiplyScalar(hasMovementInput ? playerMoveSpeed : 0);
     const moveRate = hasMovementInput ? explorationAcceleration : explorationDeceleration;
 
@@ -665,7 +681,17 @@ export class GameApp {
     const cameraInfo = this.cameraRig.snapshot();
     const weatherInfo = this.weather.snapshot();
     const economy = this.getEconomySnapshot();
-    this.gameMenu.update(battle, economy);
+    const objective = this.getObjectiveSnapshot();
+    this.gameMenu.update(battle, economy, objective);
+    this.objectiveTracker.update(objective);
+    this.objectiveTracker.setVisible(
+      !this.titleScreen.isActive() &&
+        !this.cinematicActive &&
+        !this.dialogueBox.isActive() &&
+        !this.gameMenu.isActive() &&
+        !this.shopPanel.isActive() &&
+        battle.phase === 'exploration',
+    );
     this.shopPanel.update(economy);
     const info: RuntimeDebugInfo = {
       fps: this.frameStats.fps,
@@ -816,7 +842,11 @@ export class GameApp {
 
   private openDialogue(interaction: InteractionTrigger | string): boolean {
     const npcId = typeof interaction === 'string' ? interaction : interaction.npcId;
-    return npcId ? this.dialogueBox.show(this.sceneDialogue, npcId) : false;
+    const opened = npcId ? this.dialogueBox.show(this.sceneDialogue, npcId) : false;
+    if (opened && npcId) {
+      this.markObjectiveDialogue(npcId);
+    }
+    return opened;
   }
 
   private async enterShop(shopId: ShopId): Promise<void> {
@@ -824,6 +854,7 @@ export class GameApp {
       return;
     }
 
+    this.markObjectiveShopVisit(shopId);
     await this.sceneLoadTransition(
       'Loading shop',
       shopId === 'weapons' ? 'Preparing the weapon counter...' : 'Preparing the potion counter...',
@@ -1145,6 +1176,7 @@ export class GameApp {
     this.openingCaptionText.textContent = `The ember smoke twists north toward ${firstTownNextTownName}.`;
     await this.waitForOpeningCaption(1750);
     this.openingCaption.hidden = true;
+    this.objectiveProgress.receivedStonewakeObjective = true;
 
     this.dialogueBox.showText(
       'Pip',
@@ -1190,6 +1222,9 @@ export class GameApp {
     this.fixedFieldEnemyDefeated = false;
     this.pendingPostBattleCinematic = false;
     this.postBattleCinematicPlayed = false;
+    this.objectiveProgress.defeatedProwler = false;
+    this.objectiveProgress.receivedStonewakeObjective = false;
+    this.objectiveProgress.reachedStonewakeTrail = false;
     this.outsideEncounterDistance = 0;
     this.outsideEncounterCount = 0;
     this.town.setFieldEnemyVisible(true);
@@ -1201,6 +1236,80 @@ export class GameApp {
     const text = this.openingCaptionText.textContent ?? '';
     const readingMs = Math.max(minimumMs, text.length * 58);
     await wait(readingMs);
+  }
+
+  private markObjectiveDialogue(npcId: string): void {
+    if (npcId === 'elder') {
+      this.objectiveProgress.heardElder = true;
+    }
+  }
+
+  private markObjectiveShopVisit(shopId: ShopId): void {
+    if (shopId === 'weapons') {
+      this.objectiveProgress.visitedWeaponShop = true;
+    } else {
+      this.objectiveProgress.visitedPotionShop = true;
+    }
+  }
+
+  private updateRouteObjectiveProgress(): void {
+    if (this.objectiveProgress.receivedStonewakeObjective && this.hero.root.position.z <= -42) {
+      this.objectiveProgress.reachedStonewakeTrail = true;
+    }
+  }
+
+  private getObjectiveSnapshot(): ObjectiveSnapshot {
+    const prepComplete =
+      this.objectiveProgress.heardElder &&
+      this.objectiveProgress.visitedWeaponShop &&
+      this.objectiveProgress.visitedPotionShop;
+
+    if (!prepComplete) {
+      return {
+        id: 'aetherwake-prep',
+        title: 'Prepare for the north gate',
+        description: 'Learn what is happening in town and check both shops before crossing the wall.',
+        checklist: [
+          { complete: this.objectiveProgress.heardElder, id: 'elder', label: "Hear Elder Ren's warning" },
+          { complete: this.objectiveProgress.visitedWeaponShop, id: 'weapon-shop', label: 'Check the weapon shop' },
+          { complete: this.objectiveProgress.visitedPotionShop, id: 'potion-shop', label: 'Check the potion store' },
+        ],
+      };
+    }
+
+    if (!this.objectiveProgress.defeatedProwler) {
+      return {
+        id: 'north-gate-prowler',
+        title: 'Face the prowler',
+        description: 'Leave through the north gate and confront the visible enemy on the road.',
+        checklist: [
+          { complete: true, id: 'prep', label: 'Prepare with the town' },
+          { complete: false, id: 'prowler', label: 'Defeat the prowler outside the wall' },
+        ],
+      };
+    }
+
+    if (!this.objectiveProgress.receivedStonewakeObjective) {
+      return {
+        id: 'listen-to-pip',
+        title: 'Listen to Pip',
+        description: 'The road is quiet for a moment. Let Pip explain where the ember smoke leads.',
+        checklist: [
+          { complete: true, id: 'prowler', label: 'Defeat the prowler outside the wall' },
+          { complete: false, id: 'pip', label: "Hear Pip's report" },
+        ],
+      };
+    }
+
+    return {
+      id: 'stonewake-road',
+      title: 'Follow the Stonewake road',
+      description: `The prowler was only scouting. Follow the ember smoke north toward ${firstTownNextTownName}.`,
+      checklist: [
+        { complete: true, id: 'pip', label: `Warn ${firstTownNextTownName} before nightfall` },
+        { complete: this.objectiveProgress.reachedStonewakeTrail, id: 'trail', label: 'Reach the north trail marker' },
+      ],
+    };
   }
 
   private installTestApi(): void {
@@ -1288,6 +1397,7 @@ export class GameApp {
             meters: this.outsideEncounterDistance,
             nextMeters: wildEncounterDistanceMeters,
           },
+          objectiveInfo: this.getObjectiveSnapshot(),
           townAssetInfo: {
             fallbackIds: this.town.getFallbackIds(),
             loading: this.townAssetsLoading,

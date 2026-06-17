@@ -41,6 +41,12 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     </div>
   </section>
   <div class="qa-caption" data-testid="qa-caption" hidden></div>
+  <section class="objective-tracker" data-testid="objective-tracker" hidden>
+    <span>Objective</span>
+    <strong data-testid="objective-title">Prepare for the north gate</strong>
+    <p data-testid="objective-description"></p>
+    <ul data-testid="objective-checklist"></ul>
+  </section>
   <div class="move-banner" data-testid="move-banner" hidden></div>
   <section class="dialogue-box" data-testid="dialogue-box" hidden>
     <strong data-testid="dialogue-speaker">Villager</strong>
@@ -79,6 +85,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
         <button type="button" data-menu-tab="items" data-testid="menu-tab-items">Items</button>
         <button type="button" data-menu-tab="equipment" data-testid="menu-tab-equipment">Equipment</button>
         <button type="button" data-menu-tab="skills" data-testid="menu-tab-skills">Skills</button>
+        <button type="button" data-menu-tab="journal" data-testid="menu-tab-journal">Journal</button>
         <button type="button" data-menu-tab="party" data-testid="menu-tab-party">Party</button>
         <button type="button" data-menu-tab="system" data-testid="menu-tab-system">System</button>
         <button type="button" data-menu-tab="help" data-testid="menu-tab-help">Help</button>

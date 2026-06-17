@@ -1,10 +1,10 @@
 # First Town Screenshot Artifacts
 
-Generated on 2026-06-16 from `npm run smoke`.
+Generated on 2026-06-17 from headed smoke runs for `v0.2.0`.
 
 Source capture directory: `test-results/qa-screens/current`
 
-These screenshots are intentionally committed as browseable QA artifacts for the current first-town sandbox state. The source smoke run passed before copying these files. Headless Playwright captures can show lower FPS overlays than the visible in-app browser; use the visible browser for performance judgment. This pass includes high-detail Meshy NPC replacements, generated shop interior GLBs, walkable shop rooms, shopkeeper-driven full-screen shop menus, the reference-inspired battle command menu, multi-party ATB HUD coverage, and enemy attack camera windup/impact frames.
+These screenshots are intentionally committed as browseable QA artifacts for the current first-town sandbox state. The source smoke runs passed before copying these files. Headless Playwright captures can show lower FPS overlays than the visible in-app browser; use the visible browser for performance judgment. This pass includes the `v0.2.0` objective tracker, Journal menu tab, high-detail Meshy NPC replacements, generated shop interior GLBs, walkable shop rooms, shopkeeper-driven full-screen shop menus, the reference-inspired battle command menu, multi-party ATB HUD coverage, and enemy attack camera windup/impact frames.
 
 ## Coverage
 
@@ -14,7 +14,7 @@ These screenshots are intentionally committed as browseable QA artifacts for the
 - `npcs/` - generated NPC closeups plus the asset-room NPC lineup.
 - `buildings/` - front and collision-edge checks for each town building.
 - `walls/` - wall/corner/gate checks including the south wall near `x=-2.8, z=12.7`.
-- `menus/` - title screen, title settings/help panels, equipment menu, and party menu.
+- `menus/` - title screen, title settings/help panels, objective tracker, Journal tab, equipment menu, and party menu.
 
 ## Files
 
@@ -89,7 +89,9 @@ These screenshots are intentionally committed as browseable QA artifacts for the
 ### Menus
 
 - `menus/menu-game-equipment.png`
+- `menus/menu-game-journal.png`
 - `menus/menu-game-party.png`
+- `menus/menu-objective-tracker.png`
 - `menus/menu-title-help.png`
 - `menus/menu-title-panel.png`
 - `menus/menu-title-screen.png`

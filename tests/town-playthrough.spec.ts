@@ -32,7 +32,7 @@ test('scripted first town playthrough hides debug and reaches shops, NPCs, and b
     window.__rpgTest?.muteAudio();
   });
   await expect(page.getByTestId('debug-panel')).toBeHidden();
-  await expect(page.getByTestId('title-version')).toContainText('v0.1.2');
+  await expect(page.getByTestId('title-version')).toContainText('v0.2.0');
   await waitForTownAssets(page);
 
   await capture(page, 'playthrough-01-title-screen.png');
@@ -41,6 +41,7 @@ test('scripted first town playthrough hides debug and reaches shops, NPCs, and b
   await expect(page.getByTestId('opening-caption')).toBeVisible({ timeout: 5_000 });
   await capture(page, 'playthrough-02-opening-cinematic.png');
   await expect(page.getByTestId('opening-caption')).toBeHidden({ timeout: 18_000 });
+  await expect(page.getByTestId('objective-title')).toHaveText('Prepare for the north gate');
 
   await placeHero(page, 0, 7.0);
   await capture(page, 'playthrough-03-town-square.png');
@@ -118,11 +119,15 @@ test('scripted first town playthrough hides debug and reaches shops, NPCs, and b
   await expect(page.getByTestId('dialogue-text')).toContainText('Stonewake');
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().routeInfo.fixedFieldEnemyDefeated)).toBe(true);
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().routeInfo.fieldEnemyVisible)).toBe(false);
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().objectiveInfo.id)).toBe('stonewake-road');
   await capture(page, 'playthrough-16-post-battle-thanks.png');
   await page.getByTestId('dialogue-next').click();
   await expect(page.getByTestId('dialogue-box')).toBeHidden();
   await page.evaluate(() => window.__rpgTest?.setDebugPose('route.north.stonewake_trail'));
   await page.waitForTimeout(350);
+  await expect
+    .poll(() => page.evaluate(() => window.__rpgTest?.getState().objectiveInfo.checklist.find((item) => item.id === 'trail')?.complete))
+    .toBe(true);
   await capture(page, 'playthrough-17-stonewake-trail-preview.png');
 
   expect(errors).toEqual([]);
