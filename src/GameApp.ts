@@ -1036,6 +1036,13 @@ export class GameApp {
     }
   }
 
+  private async waitForSceneTransitionToSettle(): Promise<void> {
+    while (this.sceneTransitionActive) {
+      await wait(50);
+    }
+    this.sceneLoading.hidden = true;
+  }
+
   private applyDebugPose(
     poseId: string,
     options: { cameraOnly?: boolean; teleportOnly?: boolean } = {},
@@ -1127,6 +1134,9 @@ export class GameApp {
     if (this.cinematicActive) {
       return;
     }
+    if (fromDebug) {
+      await this.waitForSceneTransitionToSettle();
+    }
 
     this.openingCinematicPlayed = true;
     this.cinematicActive = true;
@@ -1137,6 +1147,9 @@ export class GameApp {
     if (fromDebug && this.battle.getPhase() !== 'exploration') {
       this.battle.resetEncounter();
       await wait(120);
+    }
+    if (fromDebug) {
+      this.normalizeTownRoomForCinematic();
     }
 
     this.hero.root.position.set(2.1, 0, 5.15);
@@ -1165,6 +1178,17 @@ export class GameApp {
     this.weather.setMode('clear');
     this.cameraRig.setExploration();
     this.cinematicActive = false;
+  }
+
+  private normalizeTownRoomForCinematic(): void {
+    this.currentRoom = 'town';
+    this.town.root.visible = true;
+    this.battleRoom.setVisible(false);
+    this.shopPanel.hide();
+    this.shopInteriors.hide();
+    this.assetRoom.hide();
+    this.explorationVelocity.set(0, 0, 0);
+    this.updateSupportHeroVisibility();
   }
 
   private async playPostBattleCinematic(): Promise<void> {
@@ -1406,6 +1430,12 @@ export class GameApp {
             geometries: this.world.renderer.info.memory.geometries,
             textures: this.world.renderer.info.memory.textures,
             triangles: this.world.renderer.info.render.triangles,
+          },
+          roomInfo: {
+            assetRoomVisible: this.assetRoom.root.visible,
+            battleRoomVisible: this.battleRoom.root.visible,
+            shopRoomVisible: this.shopInteriors.root.visible,
+            townVisible: this.town.root.visible,
           },
           sceneId: this.town.sceneId,
           shopId: this.shopInteriors.getActiveShopId(),

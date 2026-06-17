@@ -32,7 +32,7 @@ test('scripted first town playthrough hides debug and reaches shops, NPCs, and b
     window.__rpgTest?.muteAudio();
   });
   await expect(page.getByTestId('debug-panel')).toBeHidden();
-  await expect(page.getByTestId('title-version')).toContainText('v0.2.1');
+  await expect(page.getByTestId('title-version')).toContainText('v0.2.2');
   await waitForTownAssets(page);
 
   await capture(page, 'playthrough-01-title-screen.png');

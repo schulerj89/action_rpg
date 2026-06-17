@@ -11,3 +11,15 @@
 **Files:** `src/GameApp.ts`, `tests/patch-regression.spec.ts`, version metadata.
 
 **Smoke coverage:** The patch regression smoke presses `M` and `Right Shift` on title/opening cinematic, during NPC dialogue, with the shop panel open, and during a battle command state. It also verifies that `M` still opens and closes the menu during normal exploration.
+
+## v0.2.2 - Normalize Room State Before Debug Cinematics
+
+**Decision:** Force the game back to a clean town room, and wait for any active loading transition to settle, before replaying the opening cinematic from debug tools.
+
+**Why:** The code-review pass found that replaying the opening cinematic from a shop, asset room, or active battle could leave the wrong room roots visible under the scripted town camera. Screenshot QA also caught stale loading overlay text when the debug replay was triggered immediately after a room transition. The cinematic should always stage Ryuji, Pip, the well, and the north gate inside the first town, regardless of where the debug command was launched.
+
+**Patch type:** Logic fix with test API visibility coverage.
+
+**Files:** `src/GameApp.ts`, `src/core/types.ts`, `tests/patch-regression.spec.ts`, version metadata.
+
+**Smoke coverage:** The patch regression smoke enters the weapon shop, asset inspection room, and battle room, replays the opening cinematic from each state, asserts `currentRoom === 'town'`, and verifies that only the town root remains visible.

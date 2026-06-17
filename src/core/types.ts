@@ -240,6 +240,12 @@ export interface RpgTestApi {
       textures: number;
       triangles: number;
     };
+    roomInfo: {
+      assetRoomVisible: boolean;
+      battleRoomVisible: boolean;
+      shopRoomVisible: boolean;
+      townVisible: boolean;
+    };
     sceneId: string;
     shopId?: string;
     shopMenuActive: boolean;

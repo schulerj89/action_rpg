@@ -10,7 +10,7 @@ test('v0.2.1 blocks global shortcuts during modal and battle states', async ({ p
   mkdirSync(screenshotDir, { recursive: true });
 
   await page.goto('/');
-  await expect(page.getByTestId('title-version')).toContainText('v0.2.1');
+  await expect(page.getByTestId('title-version')).toContainText('v0.2.2');
   await expect.poll(() => page.evaluate(() => Boolean(window.__rpgTest)), { timeout: 120_000 }).toBe(true);
   await page.evaluate(() => window.__rpgTest?.muteAudio());
 
@@ -61,10 +61,59 @@ test('v0.2.1 blocks global shortcuts during modal and battle states', async ({ p
   await page.screenshot({ path: `${screenshotDir}/patch-0.2.1-battle-shortcuts-blocked.png` });
 });
 
+test('v0.2.2 normalizes room visibility before replaying opening cinematic', async ({ page }) => {
+  test.setTimeout(240_000);
+  const screenshotDir = `${patchScreenshotRoot}/0.2.2`;
+  rmSync(screenshotDir, { force: true, recursive: true });
+  mkdirSync(screenshotDir, { recursive: true });
+
+  await page.goto('/');
+  await expect(page.getByTestId('title-version')).toContainText('v0.2.2');
+  await expect.poll(() => page.evaluate(() => Boolean(window.__rpgTest)), { timeout: 120_000 }).toBe(true);
+  await page.evaluate(() => window.__rpgTest?.muteAudio());
+
+  await page.getByTestId('title-start').click();
+  await expect(page.getByTestId('opening-caption')).toBeHidden({ timeout: 18_000 });
+
+  await page.evaluate(() => window.__rpgTest?.enterShop('weapons'));
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().currentRoom), { timeout: 90_000 }).toBe('shop');
+  await page.evaluate(() => window.__rpgTest?.playOpeningCinematic());
+  await expectTownRoomNormalized(page);
+  await page.screenshot({ path: `${screenshotDir}/patch-0.2.2-shop-cinematic-normalized.png` });
+  await expect(page.getByTestId('opening-caption')).toBeHidden({ timeout: 18_000 });
+
+  await page.evaluate(() => window.__rpgTest?.enterAssetRoom());
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().currentRoom), { timeout: 90_000 }).toBe('asset-room');
+  await page.evaluate(() => window.__rpgTest?.playOpeningCinematic());
+  await expectTownRoomNormalized(page);
+  await page.screenshot({ path: `${screenshotDir}/patch-0.2.2-asset-room-cinematic-normalized.png` });
+  await expect(page.getByTestId('opening-caption')).toBeHidden({ timeout: 18_000 });
+
+  await page.evaluate(() => window.__rpgTest?.movePlayerToBattleTrigger());
+  await expect(page.getByTestId('battle-ui')).toBeVisible({ timeout: 25_000 });
+  await page.evaluate(() => window.__rpgTest?.playOpeningCinematic());
+  await expectTownRoomNormalized(page);
+  await expect(page.getByTestId('battle-ui')).toBeHidden();
+  await page.screenshot({ path: `${screenshotDir}/patch-0.2.2-battle-cinematic-normalized.png` });
+});
+
 async function expectCameraMode(page: Page, mode: string): Promise<void> {
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.mode)).toBe(mode);
 }
 
 async function expectCameraNotFree(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().cameraInfo.mode)).not.toBe('free');
+}
+
+async function expectTownRoomNormalized(page: Page): Promise<void> {
+  await expect(page.getByTestId('opening-caption')).toBeVisible({ timeout: 10_000 });
+  await expect.poll(() => page.evaluate(() => window.__rpgTest?.getState().currentRoom)).toBe('town');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const room = window.__rpgTest?.getState().roomInfo;
+        return Boolean(room?.townVisible && !room.shopRoomVisible && !room.assetRoomVisible && !room.battleRoomVisible);
+      }),
+    )
+    .toBe(true);
 }
