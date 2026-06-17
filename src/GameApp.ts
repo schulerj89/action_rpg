@@ -783,13 +783,19 @@ export class GameApp {
 
       if (event.code === 'ShiftRight') {
         event.preventDefault();
-        this.toggleFreeCamera();
+        if (this.cameraRig.getMode() === 'free' || this.canToggleFreeCameraShortcut()) {
+          this.toggleFreeCamera();
+        }
         return;
       }
 
       if (event.code === 'KeyM' && !this.titleScreen.isActive()) {
         event.preventDefault();
-        this.gameMenu.toggle();
+        if (this.gameMenu.isActive()) {
+          this.gameMenu.hide();
+        } else if (this.canOpenGameMenuShortcut()) {
+          this.gameMenu.show();
+        }
         return;
       }
 
@@ -1084,6 +1090,29 @@ export class GameApp {
       `Weather ${info.weatherMode}`,
       `Enemy ${info.enemyVisual}`,
     ].join(' | ');
+  }
+
+  private canUseExplorationShortcut(): boolean {
+    return (
+      this.battle.getPhase() === 'exploration' &&
+      this.sceneLoading.hidden &&
+      !this.titleScreen.isActive() &&
+      !this.cinematicActive &&
+      !this.dialogueBox.isActive() &&
+      !this.shopPanel.isActive()
+    );
+  }
+
+  private canOpenGameMenuShortcut(): boolean {
+    return this.currentRoom === 'town' && this.canUseExplorationShortcut();
+  }
+
+  private canToggleFreeCameraShortcut(): boolean {
+    return (
+      this.canUseExplorationShortcut() &&
+      !this.gameMenu.isActive() &&
+      (this.currentRoom === 'town' || this.currentRoom === 'asset-room')
+    );
   }
 
   private toggleFreeCamera(): void {
